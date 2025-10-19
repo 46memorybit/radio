@@ -66,7 +66,7 @@ els.installBtn?.addEventListener('click', async () => {
   }
   await renderChips();
 
-  // URLクエリ ?url=...
+  // ?url=...
   const url = new URL(location.href).searchParams.get('url');
   if (url) {
     els.urlInput.value = url;
@@ -75,7 +75,7 @@ els.installBtn?.addEventListener('click', async () => {
   }
 })();
 
-// --- chips render（スマホ：touchstart対応、チップ全体＝コピー）
+// --- chips render（保存したテキスト → ワンタップ即コピー）
 async function renderChips() {
   const items = await listSnippets();
   if (!items.length) {
@@ -83,36 +83,34 @@ async function renderChips() {
     return;
   }
   els.chipBar.innerHTML = items.map(it => `
-    <button class="chip" type="button" data-id="${it.id}" aria-label="コピー: ${escapeHtml(it.title || '無題')}">
+    <button
+      class="chip"
+      type="button"
+      data-id="${it.id}"
+      data-text="${escapeAttr(it.text || '')}"
+      aria-label="コピー: ${escapeAttr(it.title || '無題')}">
       <b>${escapeHtml(it.title || '無題')}</b>
     </button>
   `).join('');
 
-  // touchstart + click の両対応（ダブル発火ガード）
-  let ignoreClickUntil = 0;
-  const tapHandler = async (e) => {
-    if (e.type === 'click' && Date.now() < ignoreClickUntil) return;
-    if (e.type === 'touchstart') ignoreClickUntil = Date.now() + 600;
-
+  // pointerdown で確実に“ユーザー操作”として扱わせる（iOS/Android/PC統一）
+  els.chipBar.addEventListener('pointerdown', async (e) => {
     const btn = e.target.closest('.chip');
     if (!btn) return;
-    const id = Number(btn.dataset.id);
-    const fresh = await listSnippets();
-    const hit = fresh.find(x => x.id === id);
-    if (!hit) return;
+    const text = btn.dataset.text || '';
+    if (!text) return;
 
     try {
-      await writeClipboard(hit.text);
+      await writeClipboard(text);
       toast('コピーしました');
     } catch (err) {
-      window.prompt('コピーできない場合は全選択してコピーしてください', hit.text);
+      // 最後の保険
+      window.prompt('コピーできない場合は全選択してコピーしてください', text);
     }
-  };
-  els.chipBar.addEventListener('touchstart', tapHandler, { passive: true });
-  els.chipBar.addEventListener('click', tapHandler);
+  });
 }
 
-// --- snippet add/copy
+// --- snippet add / copy
 els.saveSnippetBtn.addEventListener('click', async () => {
   const title = els.snipTitle.value;
   const text  = els.snipText.value;
@@ -169,7 +167,7 @@ function setFrame(url) {
   els.frame.src = url;
 }
 
-// --- clipboard（強化：HTTPS / PWA / iOSフォールバック）
+// --- clipboard（HTTPS優先 → フォールバックは“画面内・透明”textarea）
 async function writeClipboard(text) {
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -177,34 +175,31 @@ async function writeClipboard(text) {
       return;
     } catch (_) { /* fallthrough */ }
   }
-  // フォールバック：不可視textareaに書き込んで選択→コピー
-  const ta = els.copyHelper;
+  // 画面内・透明の textarea を一時生成（iOS PWAで安定しやすい）
+  const ta = document.createElement('textarea');
   ta.value = text;
-  ta.removeAttribute('readonly'); // iOS対策：選択可能に
+  ta.setAttribute('readonly', 'true');
+  Object.assign(ta.style, {
+    position: 'fixed',
+    left: '0px',
+    top: '0px',
+    width: '1px',
+    height: '1px',
+    opacity: '0',
+    zIndex: '2147483647',
+  });
+  document.body.appendChild(ta);
   ta.focus({ preventScroll:true });
   ta.select();
   ta.setSelectionRange(0, ta.value.length);
   const ok = document.execCommand('copy');
-  ta.setAttribute('readonly', 'true');
+  ta.remove();
   if (!ok) throw new Error('execCommand failed');
 }
 
-// --- export backup
-els.exportBtn?.addEventListener('click', async () => {
-  const [snips, lastUrl] = [await listSnippets(), await getKV('last-url')];
-  const blob = new Blob([JSON.stringify({ snips, lastUrl, exportedAt:new Date().toISOString() }, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `request-helper-backup-${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
 // --- utils
 function escapeHtml(s=''){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function escapeAttr(s=''){return s.replace(/["&<>]/g,m=>({'"':'&quot;','&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
 function toast(msg){
   els.toast.textContent = msg;
   els.toast.classList.add('show');
