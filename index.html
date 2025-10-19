@@ -3,195 +3,117 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>GENSEN Request Helper (PWA)</title>
-  <meta name="description" content="USEN/ラジリク風 依頼文ジェネレーター（PWA対応）。ワンクリックでコピー、オフライン保存、履歴管理。" />
-  <meta name="theme-color" content="#111827" />
-
-  <!-- iOS PWA 対応 -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="./assets/icon-192.png">
-
-  <!-- Manifest -->
-  <link rel="manifest" href="./manifest.webmanifest">
-
-  <!-- Minimal Reset & UI -->
+  <title>リクエスト支援PWA</title>
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <style>
     :root { color-scheme: light dark; }
-    * { box-sizing: border-box; }
-    html,body { margin:0; padding:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; background:#0b1020; color:#e5e7eb; }
-    header { position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background: rgba(11,16,32,0.75); border-bottom:1px solid #1f2937; }
-    header .wrap { max-width: 960px; margin: 0 auto; padding: 12px 16px; display:flex; align-items:center; gap:12px; }
-    header h1 { font-size: 16px; margin: 0; font-weight: 700; }
-    main { max-width:960px; margin:0 auto; padding: 16px; display:grid; gap:16px; }
-    .card { background: #111827; border:1px solid #1f2937; border-radius: 16px; padding:16px; }
-    .grid { display:grid; gap:12px; }
-    .row { display:grid; grid-template-columns: 1fr 2fr; gap: 12px; align-items:center; }
-    label { font-size: 12px; color:#9ca3af; }
-    input[type="text"], textarea, select {
-      width:100%; padding:10px 12px; border:1px solid #293042; border-radius: 10px;
-      background:#0f1222; color:#e5e7eb; outline:none;
-    }
-    textarea { min-height: 140px; resize: vertical; }
-    .btns { display:flex; flex-wrap: wrap; gap:8px; }
-    button {
-      padding:10px 14px; border:none; border-radius: 10px; background:#2563eb; color:white; font-weight:600; cursor:pointer;
-    }
-    button.secondary { background:#374151; }
-    button.ghost { background:transparent; border:1px solid #374151; color:#cbd5e1; }
-    .muted { color:#9ca3af; font-size:12px; }
-    .flex { display:flex; gap:12px; align-items:center; }
-    .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .pill { font-size: 12px; padding:4px 8px; border-radius:999px; background:#0f172a; border:1px solid #1f2937; color:#9ca3af; }
-    .list { display:grid; gap:8px; max-height: 260px; overflow:auto; }
-    .item { padding:10px; border:1px solid #1f2937; border-radius:10px; background:#0f1222; }
-    .item small { color:#9ca3af; }
-    .tag { display:inline-block; margin-right:6px; padding:2px 8px; border-radius:999px; background:#111827; border:1px solid #293042; font-size:11px; color:#a5b4fc; }
-    .right { text-align:right; }
-    .install { display:none; }
-    .visible { display:block; }
-    .danger { background:#b91c1c; }
-    .success { background:#16a34a; }
-    .warn { background:#d97706; }
-    .copy-done { font-size:12px; color:#34d399; margin-left:8px; display:none; }
-    .copy-done.visible { display:inline; }
-    footer { padding: 24px; text-align:center; color:#6b7280; }
-    @media (max-width: 760px) {
-      .row { grid-template-columns: 1fr; }
-      .split { grid-template-columns: 1fr; }
-    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:#0b1020;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif}
+    header{position:sticky;top:0;z-index:10;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-bottom:1px solid #1f2937}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center}
+    h1{font-size:16px;margin:0}
+    .pill{font-size:12px;padding:4px 8px;border:1px solid #2b3246;border-radius:999px;color:#9ca3af}
+    main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:16px}
+    .card{background:#101527;border:1px solid #20283b;border-radius:14px;padding:14px}
+    .row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+    input,textarea{width:100%;padding:10px 12px;border:1px solid #2a3146;border-radius:10px;background:#0f1426;color:#e5e7eb}
+    textarea{min-height:90px}
+    label{font-size:12px;color:#9ca3af}
+    button{padding:9px 12px;border:0;border-radius:10px;background:#2563eb;color:white;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid #2a3146;color:#cbd5e1}
+    button.danger{background:#b91c1c}
+    .savebar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .chipbar{display:flex;gap:8px;overflow:auto;padding-bottom:6px}
+    .chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #2a3146;background:#0f1426;border-radius:999px;white-space:nowrap}
+    .chip b{font-weight:700}
+    .chip .copy{padding:3px 8px;border-radius:8px;background:#374151}
+    .muted{font-size:12px;color:#9ca3af}
+    iframe{width:100%;height:70vh;border:1px solid #1f2937;border-radius:12px;background:#0f1426}
+    .install{display:none}
+    .visible{display:inline-block}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;padding:10px 14px;border:1px solid #2a3146;border-radius:10px;opacity:0;transition:.2s}
+    .toast.show{opacity:1}
   </style>
 </head>
 <body>
-  <header>
-    <div class="wrap">
-      <img src="./assets/icon-192.png" width="24" height="24" alt="icon" style="border-radius:6px;" />
-      <h1>GENSEN Request Helper</h1>
-      <span class="pill">PWA / オフライン対応</span>
-      <div style="margin-left:auto" class="flex">
-        <button id="installBtn" class="ghost install">インストール</button>
-        <button id="exportBtn" class="ghost">バックアップ</button>
-        <label class="muted">v1.0</label>
+<header>
+  <div class="wrap">
+    <img src="./assets/icon-192.png" alt="" width="24" height="24" style="border-radius:6px">
+    <h1>リクエスト支援PWA</h1>
+    <span class="pill">PWA / オフライン / 保存</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button id="installBtn" class="ghost install">インストール</button>
+      <button id="exportBtn" class="ghost">バックアップ</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 上部：保存したテキスト（ワンクリックコピー） -->
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h2 style="margin:0;font-size:18px">保存したテキスト</h2>
+      <div class="savebar">
+        <button id="deleteAllSnippets" class="danger">全削除</button>
       </div>
     </div>
-  </header>
+    <div id="chipBar" class="chipbar"><span class="muted">まだ保存がありません。下のフォームから追加できます。</span></div>
+  </section>
 
-  <main>
-    <!-- 設定 -->
-    <section class="card grid">
-      <div class="flex" style="justify-content:space-between;">
-        <h2 style="margin:0; font-size:18px;">基本情報</h2>
-        <span class="muted">テンプレや署名は自動で合成されます</span>
+  <!-- 追加フォーム -->
+  <section class="card grid2">
+    <div>
+      <label>タイトル（任意）</label>
+      <input id="snipTitle" placeholder="例：USEN C-26 小島凪紗テンプレ">
+    </div>
+    <div>
+      <label>テキスト</label>
+      <textarea id="snipText" placeholder="ここに依頼文テンプレを入力"></textarea>
+    </div>
+    <div class="savebar">
+      <button id="saveSnippetBtn">この内容を保存</button>
+      <button id="copyNowBtn" class="ghost">上のテキストをコピー</button>
+      <span class="muted">保存後はヘッダーのチップに追加され、ワンクリックでコピーできます。</span>
+    </div>
+  </section>
+
+  <!-- 下部：iframeエリア -->
+  <section class="card">
+    <h2 style="margin:0 0 10px;font-size:18px">リクエストページ</h2>
+    <div class="row" style="margin-bottom:8px">
+      <input id="urlInput" placeholder="表示したいリクエストURLを入力（例：https://usen.oshireq.com/song/6299592）">
+      <div style="display:flex;gap:8px">
+        <button id="loadBtn">表示</button>
+        <button id="openNewBtn" class="ghost">新しいタブで開く</button>
       </div>
-      <div class="grid">
-        <div class="row">
-          <label for="station">リクエスト先（例：USEN、番組名など）</label>
-          <input id="station" type="text" placeholder="例）USEN C-26、ラジオ番組名 など">
-        </div>
-        <div class="row">
-          <label for="name">あなたの名前（任意・ペンネーム可）</label>
-          <input id="name" type="text" placeholder="例）こんなぎ推しの○○">
-        </div>
-        <div class="row">
-          <label for="signature">署名（任意）</label>
-          <input id="signature" type="text" placeholder="例）#櫻坂46 #小島凪紗 #nagisatalk">
-        </div>
-        <div class="row">
-          <label for="template">テンプレート</label>
-          <select id="template">
-            <option value="simple">シンプル（定番）</option>
-            <option value="push">推し活アピール</option>
-            <option value="vote">投票・拡散訴求</option>
-            <option value="free">自由入力（下欄）</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="freeTemplate">自由テンプレ（{title},{artist},{reason},{station},{name},{signature} 利用可）</label>
-          <input id="freeTemplate" type="text" placeholder="例）{station} さま、{artist}『{title}』をお願いします！{reason}（{name}）{signature}">
-        </div>
-      </div>
-    </section>
+    </div>
+    <div class="savebar" style="margin-bottom:8px">
+      <button class="ghost quick" data-url="https://usen.oshireq.com/">USENトップ</button>
+      <button class="ghost quick" data-url="https://usen.oshireq.com/song/6299592">例：6299592</button>
+      <button class="ghost quick" data-url="https://radiko.jp/">radiko</button>
+    </div>
+    <iframe id="reqFrame" title="request" referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write;fullscreen *"></iframe>
+    <p class="muted" style="margin-top:8px">
+      ※ サイト側が <code>X-Frame-Options</code> / <code>frame-ancestors</code> で埋め込みを禁止している場合、iframeに表示できません。そのときは「新しいタブで開く」をご利用ください。
+    </p>
+  </section>
+</main>
 
-    <!-- 楽曲入力 + 生成/コピー -->
-    <section class="card grid">
-      <div class="split">
-        <div class="grid">
-          <h2 style="margin:0; font-size:18px;">楽曲情報</h2>
-          <div class="row">
-            <label for="title">曲名</label>
-            <input id="title" type="text" placeholder="例）タイトル">
-          </div>
-          <div class="row">
-            <label for="artist">アーティスト</label>
-            <input id="artist" type="text" placeholder="例）櫻坂46">
-          </div>
-          <div class="row">
-            <label for="reason">推し理由/メッセージ</label>
-            <input id="reason" type="text" placeholder="例）こんなぎの歌声が映える神曲なのでぜひ！">
-          </div>
-          <div class="btns">
-            <button id="genBtn">テキスト生成</button>
-            <button id="savePresetBtn" class="secondary">この組み合わせを保存</button>
-            <button id="clearBtn" class="ghost">クリア</button>
-          </div>
-        </div>
+<div id="toast" class="toast">コピーしました</div>
 
-        <div class="grid">
-          <h2 style="margin:0; font-size:18px;">結果</h2>
-          <textarea id="result" readonly placeholder="ここに生成結果が表示されます"></textarea>
-          <div class="flex">
-            <button id="copyBtn">ワンクリックでコピー</button>
-            <span id="copyDone" class="copy-done">コピーしました！</span>
-            <div class="right" style="margin-left:auto;">
-              <button id="saveHistoryBtn" class="secondary">履歴に保存</button>
-              <button id="shareBtn" class="ghost">共有（対応端末）</button>
-            </div>
-          </div>
-          <span class="muted">＊ドラッグ＆ドロップは不要です。コピーで各種フォームへ貼り付けできます。</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 履歴 / プリセット -->
-    <section class="card grid">
-      <div class="split">
-        <div class="grid">
-          <h3 style="margin:0;">保存済みプリセット</h3>
-          <div id="presetList" class="list"></div>
-          <div class="btns">
-            <button id="deleteAllPresets" class="danger">プリセット全削除</button>
-          </div>
-        </div>
-        <div class="grid">
-          <h3 style="margin:0;">生成履歴</h3>
-          <div id="historyList" class="list"></div>
-          <div class="btns">
-            <button id="deleteAllHistory" class="danger">履歴全削除</button>
-          </div>
-        </div>
-      </div>
-      <span class="muted">データはIndexedDBに保存され、オフラインでも利用可能です。</span>
-    </section>
-
-    <!-- インストール案内 -->
-    <section class="card grid">
-      <h3 style="margin:0;">インストール（ホーム画面に追加）</h3>
-      <p class="muted">このアプリはPWAです。上部の「インストール」ボタンから追加できます。iOSはSafariの共有メニューから「ホーム画面に追加」。</p>
-    </section>
-  </main>
-
-  <footer>
-    <small>© 2025 GENSEN Request Helper</small>
-  </footer>
-
-  <script type="module" src="./js/app.js"></script>
-  <script>
-    // SW登録
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-      });
-    }
-  </script>
+<script type="module" src="./js/app.js"></script>
+<script>
+  // SW登録
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+    });
+  }
+</script>
 </body>
 </html>
