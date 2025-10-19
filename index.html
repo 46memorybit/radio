@@ -9,134 +9,96 @@
   <link rel="apple-touch-icon" href="./assets/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <style>
-    :root { color-scheme: light dark; }
+    :root {
+      color-scheme: light dark;
+      --floatbar-h: 0px; /* JSが実高さを入れる */
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
     *{box-sizing:border-box}
     html,body{margin:0;background:#0b1020;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif}
-    header{position:sticky;top:0;z-index:10;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-bottom:1px solid #1f2937}
-    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center}
-    h1{font-size:16px;margin:0}
-    .pill{font-size:12px;padding:4px 8px;border:1px solid #2b3246;border-radius:999px;color:#9ca3af}
-    main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:16px}
-    .card{background:#101527;border:1px solid #20283b;border-radius:14px;padding:14px}
-    .row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-    input,textarea{width:100%;padding:10px 12px;border:1px solid #2a3146;border-radius:10px;background:#0f1426;color:#e5e7eb}
-    textarea{min-height:90px}
-    label{font-size:12px;color:#9ca3af}
-    button{padding:9px 12px;border:0;border-radius:10px;background:#2563eb;color:white;font-weight:600;cursor:pointer}
-    button.ghost{background:transparent;border:1px solid #2a3146;color:#cbd5e1}
-    button.danger{background:#b91c1c}
-    .savebar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .chipbar{display:flex;gap:8px;overflow:auto;padding-bottom:6px}
-    .chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #2a3146;background:#0f1426;border-radius:999px;white-space:nowrap}
-    .chip b{font-weight:700}
-    .chip .copy{padding:3px 8px;border-radius:8px;background:#374151}
+
+    /* --- フローティングバー（保存したテキスト） --- */
+    .floatbar {
+      position: fixed;
+      left: 0; right: 0; top: 0;
+      z-index: 1000;
+      padding-top: calc(8px + var(--safe-top));
+      padding-bottom: 8px;
+      background: rgba(11,16,32,.88);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #1f2937;
+      box-shadow: 0 6px 24px rgba(0,0,0,.35);
+    }
+    .float-inner {
+      max-width: 1100px; margin: 0 auto; padding: 0 12px;
+    }
+    .bar-head {
+      display:flex; gap:10px; align-items:center; margin-bottom:8px;
+    }
+    .bar-head h2 { font-size:14px; margin:0; font-weight:700; }
+    .bar-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+    .chipbar {
+      display:flex; gap:8px; overflow:auto; padding-bottom:4px;
+      scrollbar-width: thin;
+    }
+    .chip {
+      display:flex; align-items:center; gap:8px;
+      padding:8px 10px; border:1px solid #2a3146; background:#0f1426;
+      border-radius:999px; white-space:nowrap; max-width: 60vw;
+    }
+    .chip b { font-weight:700; overflow:hidden; text-overflow:ellipsis; max-width: 34vw; display:inline-block }
+    .chip .copy { padding:3px 8px; border-radius:8px; background:#374151; border:0; color:#e5e7eb; cursor:pointer }
+    .ghost{background:transparent;border:1px solid #2a3146;color:#cbd5e1}
+    .danger{background:#b91c1c;border:0;color:#fff;cursor:pointer;border-radius:10px;padding:8px 10px}
+    .toggle{background:#2563eb;border:0;color:#fff;cursor:pointer;border-radius:10px;padding:8px 10px}
     .muted{font-size:12px;color:#9ca3af}
-    iframe{width:100%;height:70vh;border:1px solid #1f2937;border-radius:12px;background:#0f1426}
-    .install{display:none}
-    .visible{display:inline-block}
+
+    /* --- 本文はフロート分だけ下げる --- */
+    main { padding: 12px; padding-top: calc(var(--floatbar-h) + 12px); }
+    .container { max-width:1100px; margin:0 auto; display:grid; gap:16px }
+
+    .card{background:#101527;border:1px solid #20283b;border-radius:14px;padding:14px}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+    label{font-size:12px;color:#9ca3af}
+    input,textarea{width:100%;padding:10px 12px;border:1px solid #2a3146;border-radius:10px;background:#0f1426;color:#e5e7eb}
+    textarea{min-height:90px}
+    button{padding:9px 12px;border:0;border-radius:10px;background:#2563eb;color:white;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid #2a3146;color:#cbd5e1}
+    .row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+    iframe{width:100%;height:70vh;border:1px solid #1f2937;border-radius:12px;background:#0f1426}
 
-    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;padding:10px 14px;border:1px solid #2a3146;border-radius:10px;opacity:0;transition:.2s}
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;padding:10px 14px;border:1px solid #2a3146;border-radius:10px;opacity:0;transition:.2s;z-index:1100}
     .toast.show{opacity:1}
 
-    /* ★ フローティングコピー（右上固定） */
-    .float-copy {
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 1000;
-      background: #2563eb;
-      color: #fff;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 999px;
-      font-weight: 600;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      cursor: pointer;
-      transition: transform 0.1s ease;
-    }
-    .float-copy:active { transform: scale(0.95); }
+    /* 折りたたみ時 */
+    .floatbar.min { padding-bottom:6px }
+    .floatbar.min .chipbar { display:none }
   </style>
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <img src="./assets/icon-192.png" alt="" width="24" height="24" style="border-radius:6px">
-    <h1>リクエスト支援PWA</h1>
-    <span class="pill">PWA / オフライン / 保存</span>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button id="installBtn" class="ghost install">インストール</button>
-      <button id="exportBtn" class="ghost">バックアップ</button>
-    </div>
-  </div>
-</header>
 
-<main>
-  <!-- 上部：保存したテキスト（ワンクリックコピー） -->
-  <section class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <h2 style="margin:0;font-size:18px">保存したテキスト</h2>
-      <div class="savebar">
+<!-- フローティング：保存テキスト -->
+<div id="floatbar" class="floatbar">
+  <div class="float-inner">
+    <div class="bar-head">
+      <h2>保存したテキスト</h2>
+      <span id="countBadge" class="muted"></span>
+      <div class="bar-actions">
+        <button id="collapseBtn" class="toggle" title="表示/非表示切替">折りたたむ</button>
+        <button id="exportBtn" class="ghost">バックアップ</button>
         <button id="deleteAllSnippets" class="danger">全削除</button>
       </div>
     </div>
-    <div id="chipBar" class="chipbar"><span class="muted">まだ保存がありません。下のフォームから追加できます。</span></div>
-  </section>
-
-  <!-- 追加フォーム -->
-  <section class="card grid2">
-    <div>
-      <label>タイトル（任意）</label>
-      <input id="snipTitle" placeholder="例：USEN C-26 小島凪紗テンプレ">
+    <div id="chipBar" class="chipbar">
+      <span class="muted">まだ保存がありません。下のフォームから追加できます。</span>
     </div>
-    <div>
-      <label>テキスト</label>
-      <textarea id="snipText" placeholder="ここに依頼文テンプレを入力"></textarea>
-    </div>
-    <div class="savebar">
-      <button id="saveSnippetBtn">この内容を保存</button>
-      <button id="copyNowBtn" class="ghost">上のテキストをコピー</button>
-      <span class="muted">保存後はヘッダーのチップに追加され、ワンクリックでコピーできます。</span>
-    </div>
-  </section>
+  </div>
+</div>
 
-  <!-- 下部：iframeエリア -->
-  <section class="card">
-    <h2 style="margin:0 0 10px;font-size:18px">リクエストページ</h2>
-    <div class="row" style="margin-bottom:8px">
-      <input id="urlInput" placeholder="表示したいリクエストURLを入力（例：https://usen.oshireq.com/song/6299592）">
-      <div style="display:flex;gap:8px">
-        <button id="loadBtn">表示</button>
-        <button id="openNewBtn" class="ghost">新しいタブで開く</button>
-      </div>
-    </div>
-    <div class="savebar" style="margin-bottom:8px">
-      <button class="ghost quick" data-url="https://usen.oshireq.com/">USENトップ</button>
-      <button class="ghost quick" data-url="https://usen.oshireq.com/song/6299592">例：6299592</button>
-      <button class="ghost quick" data-url="https://radiko.jp/">radiko</button>
-    </div>
-    <iframe id="reqFrame" title="request" referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write;fullscreen *"></iframe>
-    <p class="muted" style="margin-top:8px">
-      ※ サイト側が <code>X-Frame-Options</code> / <code>frame-ancestors</code> で埋め込みを禁止している場合、iframeに表示できません。そのときは「新しいタブで開く」をご利用ください。
-    </p>
-  </section>
-</main>
-
-<!-- ★ フローティングコピー -->
-<button id="floatCopyBtn" class="float-copy">📋 コピー</button>
-
-<!-- トースト（コピー/保存通知） -->
-<div id="toast" class="toast">コピーしました</div>
-
-<script type="module" src="./js/app.js"></script>
-<script>
-  // SW登録
-  if ('serviceWorker' in navigator) {
-    addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-    });
-  }
-</script>
-</body>
-</html>
+<main>
+  <div class="container">
+    <!-- 追加フォーム -->
+    <section class="card grid2">
+      <div>
+        <label>
