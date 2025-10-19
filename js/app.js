@@ -18,13 +18,12 @@ const els = {
   frame: $('#reqFrame'),
   installBtn: $('#installBtn'),
   exportBtn: $('#exportBtn'),
-  toast: $('#toast'),
-  copyHelper: $('#copyHelper'),
+  toast: $('#toast')
 };
 
 let deferredPrompt = null;
 
-// ---- フローティングバー高さ → スペーサ反映
+/* ---------- フローティングバー高さ同期 ---------- */
 const ro = new ResizeObserver(() => syncSpacer());
 ro.observe(els.floatBar);
 function syncSpacer() {
@@ -33,7 +32,7 @@ function syncSpacer() {
 }
 syncSpacer();
 
-// ---- 折りたたみ
+/* ---------- 折りたたみ ---------- */
 let collapsed = false;
 els.collapseBtn?.addEventListener('click', () => {
   collapsed = !collapsed;
@@ -43,7 +42,7 @@ els.collapseBtn?.addEventListener('click', () => {
   syncSpacer();
 });
 
-// --- PWA install
+/* ---------- PWA install ---------- */
 addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
@@ -57,7 +56,7 @@ els.installBtn?.addEventListener('click', async () => {
   els.installBtn?.classList.remove('visible');
 });
 
-// --- init
+/* ---------- init ---------- */
 (async function init() {
   const lastUrl = await getKV('last-url');
   if (lastUrl) {
@@ -66,7 +65,7 @@ els.installBtn?.addEventListener('click', async () => {
   }
   await renderChips();
 
-  // ?url=...
+  // URLクエリ ?url=...
   const url = new URL(location.href).searchParams.get('url');
   if (url) {
     els.urlInput.value = url;
@@ -75,42 +74,46 @@ els.installBtn?.addEventListener('click', async () => {
   }
 })();
 
-// --- chips render（保存したテキスト → ワンタップ即コピー）
+/* ---------- 保存チップ描画：ワンタップでコピー ---------- */
 async function renderChips() {
   const items = await listSnippets();
   if (!items.length) {
     els.chipBar.innerHTML = '<span class="muted">まだ保存がありません。下のフォームから追加できます。</span>';
     return;
   }
+  // data-text に本文を埋め込み → クリック/タップで即コピー
   els.chipBar.innerHTML = items.map(it => `
-    <button
-      class="chip"
-      type="button"
-      data-id="${it.id}"
-      data-text="${escapeAttr(it.text || '')}"
-      aria-label="コピー: ${escapeAttr(it.title || '無題')}">
+    <div class="chip" role="button" tabindex="0"
+         title="タップでコピー"
+         data-id="${it.id}"
+         data-text="${escapeHtml(it.text).replace(/"/g,'&quot;')}">
       <b>${escapeHtml(it.title || '無題')}</b>
-    </button>
+      <span class="muted">タップでコピー</span>
+    </div>
   `).join('');
-
-  // pointerdown で確実に“ユーザー操作”として扱わせる（iOS/Android/PC統一）
-  els.chipBar.addEventListener('pointerdown', async (e) => {
-    const btn = e.target.closest('.chip');
-    if (!btn) return;
-    const text = btn.dataset.text || '';
-    if (!text) return;
-
-    try {
-      await writeClipboard(text);
-      toast('コピーしました');
-    } catch (err) {
-      // 最後の保険
-      window.prompt('コピーできない場合は全選択してコピーしてください', text);
-    }
-  });
 }
 
-// --- snippet add / copy
+/* ---------- チップのタップ/クリック/キーボード操作でコピー ---------- */
+els.chipBar.addEventListener('pointerup', onChipActivate, { passive: true });
+els.chipBar.addEventListener('click', onChipActivate);
+els.chipBar.addEventListener('keydown', (e) => {
+  if (e.target.classList.contains('chip') && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    onChipActivate(e);
+  }
+});
+
+async function onChipActivate(e) {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  const text = chip.getAttribute('data-text') || '';
+  if (!text) return;
+  await writeClipboard(text);
+  if (navigator.vibrate) navigator.vibrate(10);
+  toast('コピーしました');
+}
+
+/* ---------- snippet add / copy now ---------- */
 els.saveSnippetBtn.addEventListener('click', async () => {
   const title = els.snipTitle.value;
   const text  = els.snipText.value;
@@ -127,7 +130,7 @@ els.copyNowBtn.addEventListener('click', async () => {
   toast('コピーしました');
 });
 
-// --- delete all
+/* ---------- delete all ---------- */
 els.deleteAllSnippets.addEventListener('click', async () => {
   if (!confirm('保存したテキストを全削除します。よろしいですか？')) return;
   await deleteAllSnippets();
@@ -135,7 +138,7 @@ els.deleteAllSnippets.addEventListener('click', async () => {
   toast('削除しました');
 });
 
-// --- quick buttons
+/* ---------- quick buttons ---------- */
 document.querySelectorAll('.quick').forEach(b=>{
   b.addEventListener('click', async ()=>{
     const u = b.dataset.url;
@@ -145,7 +148,7 @@ document.querySelectorAll('.quick').forEach(b=>{
   });
 });
 
-// --- load/open
+/* ---------- load/open ---------- */
 els.loadBtn.addEventListener('click', async () => {
   const u = els.urlInput.value.trim();
   if (!u) return;
@@ -157,7 +160,7 @@ els.openNewBtn.addEventListener('click', () => {
   if (u) window.open(u, '_blank', 'noopener');
 });
 
-// --- iframe
+/* ---------- iframe ---------- */
 function setFrame(url) {
   els.frame.src = 'about:blank';
   const fallbackTimer = setTimeout(()=>{
@@ -167,39 +170,44 @@ function setFrame(url) {
   els.frame.src = url;
 }
 
-// --- clipboard（HTTPS優先 → フォールバックは“画面内・透明”textarea）
+/* ---------- clipboard（失敗時も確実にフォールバック） ---------- */
 async function writeClipboard(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text); // iOSで拒否される場合あり
       return;
-    } catch (_) { /* fallthrough */ }
+    }
+    throw new Error('Clipboard API unavailable');
+  } catch {
+    // フォールバック（iOS Safari対応）
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length); // iOS
+    try { document.execCommand('copy'); } finally { ta.remove(); }
   }
-  // 画面内・透明の textarea を一時生成（iOS PWAで安定しやすい）
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.setAttribute('readonly', 'true');
-  Object.assign(ta.style, {
-    position: 'fixed',
-    left: '0px',
-    top: '0px',
-    width: '1px',
-    height: '1px',
-    opacity: '0',
-    zIndex: '2147483647',
-  });
-  document.body.appendChild(ta);
-  ta.focus({ preventScroll:true });
-  ta.select();
-  ta.setSelectionRange(0, ta.value.length);
-  const ok = document.execCommand('copy');
-  ta.remove();
-  if (!ok) throw new Error('execCommand failed');
 }
 
-// --- utils
+/* ---------- export backup ---------- */
+els.exportBtn?.addEventListener('click', async () => {
+  const [snips, lastUrl] = [await listSnippets(), await getKV('last-url')];
+  const blob = new Blob([JSON.stringify({ snips, lastUrl, exportedAt:new Date().toISOString() }, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `request-helper-backup-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+/* ---------- utils ---------- */
 function escapeHtml(s=''){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function escapeAttr(s=''){return s.replace(/["&<>]/g,m=>({'"':'&quot;','&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
 function toast(msg){
   els.toast.textContent = msg;
   els.toast.classList.add('show');
