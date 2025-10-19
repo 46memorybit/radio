@@ -1,0 +1,20 @@
+{
+  "name": "GENSEN Request Helper",
+  "short_name": "GENSEN",
+  "description": "USEN/ラジリクの依頼文を生成・コピー。PWAでオフライン保存＆履歴管理。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "reason" }
+  }
+}
