@@ -3,6 +3,7 @@ import { addSnippet, listSnippets, deleteAllSnippets, setKV, getKV } from './db.
 
 const $ = (s)=>document.querySelector(s);
 const els = {
+  floatbar: $('#floatbar'),
   chipBar: $('#chipBar'),
   snipTitle: $('#snipTitle'),
   snipText: $('#snipText'),
@@ -15,45 +16,62 @@ const els = {
   frame: $('#reqFrame'),
   installBtn: $('#installBtn'),
   exportBtn: $('#exportBtn'),
-  toast: $('#toast'),
-  floatCopyBtn: $('#floatCopyBtn'),
+  toast: $('#toast')
 };
 
 let deferredPrompt = null;
 
-// --- PWA install
+/* ===== フローティングバーの高さを計測し、CSS変数に反映 ===== */
+function updateFloatbarHeight(){
+  const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
+  const h = (els.floatbar?.offsetHeight || 72) + safeTop;
+  document.documentElement.style.setProperty('--floatbar-h', h + 'px');
+}
+addEventListener('resize', updateFloatbarHeight);
+addEventListener('orientationchange', updateFloatbarHeight);
+
+/* ===== PWA install ===== */
 addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  els.installBtn?.classList.add('visible');
+  if (els.installBtn) els.installBtn.style.display = 'inline-block';
 });
 els.installBtn?.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
-  els.installBtn?.classList.remove('visible');
+  els.installBtn.style.display = 'none';
 });
 
-// --- init
+/* ===== init ===== */
 (async function init() {
+  await renderChips();
+  await restoreURL();
+  wireQuickButtons();
+  updateFloatbarHeight();                // 初期表示時に反映
+  // レイアウト変化を監視（チップ増減・折返しで高さが変わる）
+  if (window.ResizeObserver && els.floatbar) {
+    const ro = new ResizeObserver(updateFloatbarHeight);
+    ro.observe(els.floatbar);
+  }
+})();
+
+async function restoreURL(){
   const lastUrl = await getKV('last-url');
   if (lastUrl) {
     els.urlInput.value = lastUrl;
     setFrame(lastUrl);
   }
-  await renderChips();
-
-  // URLクエリ ?url=...
   const url = new URL(location.href).searchParams.get('url');
   if (url) {
     els.urlInput.value = url;
     await setKV('last-url', url);
     setFrame(url);
   }
-})();
+}
 
-// --- chips render
+/* ===== chips ===== */
 async function renderChips() {
   const items = await listSnippets();
   if (!items.length) {
@@ -69,8 +87,8 @@ async function renderChips() {
   els.chipBar.querySelectorAll('button.copy').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = Number(btn.dataset.id);
-      const items2 = await listSnippets();
-      const hit = items2.find(x => x.id === id);
+      const list = await listSnippets();
+      const hit = list.find(x => x.id === id);
       if (!hit) return;
       await writeClipboard(hit.text);
       toast('コピーしました');
@@ -78,7 +96,7 @@ async function renderChips() {
   });
 }
 
-// --- snippet add/copy
+/* ===== snippet add/copy ===== */
 els.saveSnippetBtn.addEventListener('click', async () => {
   const title = els.snipTitle.value;
   const text  = els.snipText.value;
@@ -86,8 +104,10 @@ els.saveSnippetBtn.addEventListener('click', async () => {
   await addSnippet({ title, text });
   els.snipText.value = '';
   await renderChips();
+  updateFloatbarHeight(); // 高さ再計測
   toast('保存しました');
 });
+
 els.copyNowBtn.addEventListener('click', async () => {
   const txt = els.snipText.value.trim();
   if (!txt) return;
@@ -95,25 +115,28 @@ els.copyNowBtn.addEventListener('click', async () => {
   toast('コピーしました');
 });
 
-// --- delete all
+/* ===== delete all ===== */
 els.deleteAllSnippets.addEventListener('click', async () => {
   if (!confirm('保存したテキストを全削除します。よろしいですか？')) return;
   await deleteAllSnippets();
   await renderChips();
+  updateFloatbarHeight();
   toast('削除しました');
 });
 
-// --- quick buttons
-document.querySelectorAll('.quick').forEach(b=>{
-  b.addEventListener('click', async ()=>{
-    const u = b.dataset.url;
-    els.urlInput.value = u;
-    await setKV('last-url', u);
-    setFrame(u);
+/* ===== quick buttons ===== */
+function wireQuickButtons(){
+  document.querySelectorAll('.quick').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const u = b.dataset.url;
+      els.urlInput.value = u;
+      await setKV('last-url', u);
+      setFrame(u);
+    });
   });
-});
+}
 
-// --- load/open
+/* ===== load/open ===== */
 els.loadBtn.addEventListener('click', async () => {
   const u = els.urlInput.value.trim();
   if (!u) return;
@@ -125,18 +148,15 @@ els.openNewBtn.addEventListener('click', () => {
   if (u) window.open(u, '_blank', 'noopener');
 });
 
-// --- iframe
+/* ===== iframe ===== */
 function setFrame(url) {
-  // 一旦 about:blank にしてから遷移
   els.frame.src = 'about:blank';
-  const fallbackTimer = setTimeout(()=>{
-    console.warn('Embedding may be blocked by the site.');
-  }, 10000);
-  els.frame.onload = ()=> clearTimeout(fallbackTimer);
+  const timer = setTimeout(()=>console.warn('Embedding may be blocked by the site.'), 10000);
+  els.frame.onload = ()=> clearTimeout(timer);
   els.frame.src = url;
 }
 
-// --- clipboard
+/* ===== clipboard / utils ===== */
 async function writeClipboard(text) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -149,40 +169,9 @@ async function writeClipboard(text) {
     ta.remove();
   }
 }
-
-// --- export backup
-els.exportBtn?.addEventListener('click', async () => {
-  const [snips, lastUrl] = [await listSnippets(), await getKV('last-url')];
-  const blob = new Blob([JSON.stringify({ snips, lastUrl, exportedAt:new Date().toISOString() }, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `request-helper-backup-${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-// --- utils
 function escapeHtml(s=''){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function toast(msg){
   els.toast.textContent = msg;
   els.toast.classList.add('show');
   setTimeout(()=>els.toast.classList.remove('show'), 1500);
 }
-
-// --- ★ フローティングコピー（右上固定）
-// ルール： snipText に入力中の内容があればそれをコピー。
-// 空の場合は IndexedDB の最新スニペットをコピー。
-els.floatCopyBtn.addEventListener('click', async () => {
-  const inline = els.snipText.value.trim();
-  let txt = inline;
-  if (!txt) {
-    const items = await listSnippets();
-    if (items.length) txt = items[0].text;
-  }
-  if (!txt) return alert('コピーするテキストがありません');
-  await writeClipboard(txt);
-  toast('コピーしました');
-});
