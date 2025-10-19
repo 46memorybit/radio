@@ -18,16 +18,16 @@ const els = {
   frame: $('#reqFrame'),
   installBtn: $('#installBtn'),
   exportBtn: $('#exportBtn'),
-  toast: $('#toast')
+  toast: $('#toast'),
+  copyHelper: $('#copyHelper'),
 };
 
 let deferredPrompt = null;
 
-// ---- フローティングバー高さをスペーサへ反映
+// ---- フローティングバー高さ → スペーサ反映
 const ro = new ResizeObserver(() => syncSpacer());
 ro.observe(els.floatBar);
 function syncSpacer() {
-  // safe-area-inset-top 分を含む実測高さ
   const h = Math.ceil(els.floatBar.getBoundingClientRect().height);
   els.floatSpacer.style.height = `${h}px`;
 }
@@ -75,7 +75,7 @@ els.installBtn?.addEventListener('click', async () => {
   }
 })();
 
-// --- chips render
+// --- chips render（スマホ：touchstart対応、チップ全体＝コピー）
 async function renderChips() {
   const items = await listSnippets();
   if (!items.length) {
@@ -83,21 +83,33 @@ async function renderChips() {
     return;
   }
   els.chipBar.innerHTML = items.map(it => `
-    <div class="chip">
+    <button class="chip" type="button" data-id="${it.id}" aria-label="コピー: ${escapeHtml(it.title || '無題')}">
       <b>${escapeHtml(it.title || '無題')}</b>
-      <button class="copy" data-id="${it.id}">コピー</button>
-    </div>
+    </button>
   `).join('');
-  els.chipBar.querySelectorAll('button.copy').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = Number(btn.dataset.id);
-      const items2 = await listSnippets();
-      const hit = items2.find(x => x.id === id);
-      if (!hit) return;
+
+  // touchstart + click の両対応（ダブル発火ガード）
+  let ignoreClickUntil = 0;
+  const tapHandler = async (e) => {
+    if (e.type === 'click' && Date.now() < ignoreClickUntil) return;
+    if (e.type === 'touchstart') ignoreClickUntil = Date.now() + 600;
+
+    const btn = e.target.closest('.chip');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const fresh = await listSnippets();
+    const hit = fresh.find(x => x.id === id);
+    if (!hit) return;
+
+    try {
       await writeClipboard(hit.text);
       toast('コピーしました');
-    });
-  });
+    } catch (err) {
+      window.prompt('コピーできない場合は全選択してコピーしてください', hit.text);
+    }
+  };
+  els.chipBar.addEventListener('touchstart', tapHandler, { passive: true });
+  els.chipBar.addEventListener('click', tapHandler);
 }
 
 // --- snippet add/copy
@@ -157,18 +169,24 @@ function setFrame(url) {
   els.frame.src = url;
 }
 
-// --- clipboard
+// --- clipboard（強化：HTTPS / PWA / iOSフォールバック）
 async function writeClipboard(text) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (_) { /* fallthrough */ }
   }
+  // フォールバック：不可視textareaに書き込んで選択→コピー
+  const ta = els.copyHelper;
+  ta.value = text;
+  ta.removeAttribute('readonly'); // iOS対策：選択可能に
+  ta.focus({ preventScroll:true });
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  const ok = document.execCommand('copy');
+  ta.setAttribute('readonly', 'true');
+  if (!ok) throw new Error('execCommand failed');
 }
 
 // --- export backup
