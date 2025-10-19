@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <!-- 入力時ズーム抑止（iOS対策） -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <title>リクエスト支援PWA</title>
   <meta name="theme-color" content="#0b1020" />
@@ -13,11 +12,9 @@
     :root { color-scheme: light dark; }
     *{box-sizing:border-box}
     html,body{margin:0;background:#0b1020;color:#e5e7eb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif}
-
-    /* 入力時ズーム抑止：16px以上 */
     input, textarea, select { font-size:16px !important; }
 
-    /* ---- フローティングChipバー ---- */
+    /* フローティングバー */
     .floatbar{
       position:fixed; inset:auto 0 auto 0; top:0;
       z-index:1000;
@@ -29,23 +26,20 @@
     .floatbar-inner{max-width:1100px;margin:0 auto;}
     .float-title{display:flex;justify-content:space-between;align-items:center;margin:0 0 6px}
     .chipbar{display:flex;gap:8px;overflow:auto;padding-bottom:6px}
-
-    /* チップ全体をタップ＝コピー */
     .chip{
-      display:flex; align-items:center; gap:8px;
+      display:flex;align-items:center;gap:8px;
       padding:10px 12px;
-      border:1px solid #2a3146; background:#0f1426; border-radius:999px;
-      white-space:nowrap; cursor:pointer; user-select:none;
+      border:1px solid #2a3146;background:#0f1426;border-radius:999px;
+      white-space:nowrap;cursor:pointer;user-select:none;
       -webkit-tap-highlight-color: rgba(255,255,255,0.1);
     }
-    .chip:active{ transform: translateY(1px); opacity: .9; }
+    .chip:active{transform:translateY(1px);opacity:.9;}
     .chip b{font-weight:700}
     .muted{font-size:12px;color:#9ca3af}
     .bar-actions{display:flex;gap:8px;align-items:center}
     .danger{background:#b91c1c;color:#fff;border:0;border-radius:10px;padding:7px 10px;cursor:pointer}
     .ghost{background:transparent;border:1px solid #2a3146;color:#cbd5e1;border-radius:10px;padding:7px 10px;cursor:pointer}
 
-    /* フローティング分のスペーサ（高さはJSで同期） */
     .float-spacer{height:72px;}
 
     header{position:sticky;top:0;z-index:10;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-bottom:1px solid #1f2937}
@@ -73,7 +67,6 @@
   </style>
 </head>
 <body>
-  <!-- フローティング：保存したテキスト（ワンタップコピー） -->
   <div id="floatBar" class="floatbar">
     <div class="floatbar-inner">
       <div class="float-title">
@@ -87,7 +80,6 @@
     </div>
   </div>
 
-  <!-- スペーサ（フローティングの高さに自動調整） -->
   <div id="floatSpacer" class="float-spacer"></div>
 
   <header>
@@ -103,7 +95,6 @@
   </header>
 
   <main>
-    <!-- 追加フォーム -->
     <section class="card grid2">
       <div>
         <label>タイトル（任意）</label>
@@ -116,18 +107,17 @@
       <div class="savebar">
         <button id="saveSnippetBtn">この内容を保存</button>
         <button id="copyNowBtn" class="ghost2">上のテキストをコピー</button>
-        <span class="muted">保存後は上部のフローティングバーに追加され、ワンタップでコピーできます。</span>
+        <span class="muted">保存後は上部バーに追加され、ワンタップでコピーできます。</span>
       </div>
     </section>
 
-    <!-- 下部：iframeエリア -->
     <section class="card">
       <h2 style="margin:0 0 10px;font-size:18px">リクエストページ</h2>
       <div class="row" style="margin-bottom:8px">
-        <input id="urlInput" placeholder="表示したいリクエストURLを入力（例：https://usen.oshireq.com/song/6299592）">
+        <input id="urlInput" placeholder="URLを入力（例：https://usen.oshireq.com/song/6299592）">
         <div style="display:flex;gap:8px">
           <button id="loadBtn">表示</button>
-          <button id="openNewBtn" class="ghost2">新しいタブで開く</button>
+          <button id="openNewBtn" class="ghost2">新しいタブ</button>
         </div>
       </div>
       <div class="savebar" style="margin-bottom:8px">
@@ -137,7 +127,7 @@
       </div>
       <iframe id="reqFrame" title="request" referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write;fullscreen *"></iframe>
       <p class="muted" style="margin-top:8px">
-        ※ サイト側が <code>X-Frame-Options</code> / <code>frame-ancestors</code> で埋め込みを禁止している場合、iframeに表示できません。そのときは「新しいタブで開く」をご利用ください。
+        ※ サイト側が <code>X-Frame-Options</code> / <code>frame-ancestors</code> で禁止している場合、iframeに表示できません。
       </p>
     </section>
   </main>
