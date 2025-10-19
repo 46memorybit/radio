@@ -15,7 +15,8 @@ const els = {
   frame: $('#reqFrame'),
   installBtn: $('#installBtn'),
   exportBtn: $('#exportBtn'),
-  toast: $('#toast')
+  toast: $('#toast'),
+  floatCopyBtn: $('#floatCopyBtn'),
 };
 
 let deferredPrompt = null;
@@ -24,14 +25,14 @@ let deferredPrompt = null;
 addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  els.installBtn.classList.add('visible');
+  els.installBtn?.classList.add('visible');
 });
 els.installBtn?.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
-  els.installBtn.classList.remove('visible');
+  els.installBtn?.classList.remove('visible');
 });
 
 // --- init
@@ -128,9 +129,7 @@ els.openNewBtn.addEventListener('click', () => {
 function setFrame(url) {
   // 一旦 about:blank にしてから遷移
   els.frame.src = 'about:blank';
-  // 埋め込み禁止の場合のUX: 10秒でタイムアウト提示
   const fallbackTimer = setTimeout(()=>{
-    // 目視でブロック時の案内
     console.warn('Embedding may be blocked by the site.');
   }, 10000);
   els.frame.onload = ()=> clearTimeout(fallbackTimer);
@@ -152,7 +151,7 @@ async function writeClipboard(text) {
 }
 
 // --- export backup
-els.exportBtn.addEventListener('click', async () => {
+els.exportBtn?.addEventListener('click', async () => {
   const [snips, lastUrl] = [await listSnippets(), await getKV('last-url')];
   const blob = new Blob([JSON.stringify({ snips, lastUrl, exportedAt:new Date().toISOString() }, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -172,3 +171,18 @@ function toast(msg){
   els.toast.classList.add('show');
   setTimeout(()=>els.toast.classList.remove('show'), 1500);
 }
+
+// --- ★ フローティングコピー（右上固定）
+// ルール： snipText に入力中の内容があればそれをコピー。
+// 空の場合は IndexedDB の最新スニペットをコピー。
+els.floatCopyBtn.addEventListener('click', async () => {
+  const inline = els.snipText.value.trim();
+  let txt = inline;
+  if (!txt) {
+    const items = await listSnippets();
+    if (items.length) txt = items[0].text;
+  }
+  if (!txt) return alert('コピーするテキストがありません');
+  await writeClipboard(txt);
+  toast('コピーしました');
+});
