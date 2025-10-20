@@ -64,6 +64,14 @@
     @media (max-width:900px){.grid2{grid-template-columns:1fr}}
     .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;padding:10px 14px;border:1px solid #2a3146;border-radius:10px;opacity:0;transition:.2s}
     .toast.show{opacity:1}
+
+    /* URL管理 */
+    .url-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+    .url-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid #20283b;border-radius:10px;background:#0f1426}
+    .url-actions{display:flex;gap:6px}
+    .quickbar{display:flex;gap:8px;overflow:auto;padding:6px 0}
+    .navrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .idxpill{font-size:12px;border:1px solid #2b3246;border-radius:999px;padding:4px 8px;color:#9ca3af}
   </style>
 </head>
 <body>
@@ -113,6 +121,15 @@
 
     <section class="card">
       <h2 style="margin:0 0 10px;font-size:18px">リクエストページ</h2>
+
+      <!-- URLナビ & 現在位置 -->
+      <div class="navrow" style="margin-bottom:8px">
+        <button id="prevUrlBtn" class="ghost2">前へ</button>
+        <button id="nextUrlBtn" class="ghost2">次へ</button>
+        <span id="indexBadge" class="idxpill">0 / 0</span>
+      </div>
+
+      <!-- 入力行 -->
       <div class="row" style="margin-bottom:8px">
         <input id="urlInput" placeholder="URLを入力（例：https://usen.oshireq.com/song/6299592）">
         <div style="display:flex;gap:8px">
@@ -120,11 +137,17 @@
           <button id="openNewBtn" class="ghost2">新しいタブ</button>
         </div>
       </div>
-      <div class="savebar" style="margin-bottom:8px">
-        <button class="ghost2 quick" data-url="https://usen.oshireq.com/">USENトップ</button>
-        <button class="ghost2 quick" data-url="https://usen.oshireq.com/song/6299592">例：6299592</button>
-        <button class="ghost2 quick" data-url="https://radiko.jp/">radiko</button>
+
+      <!-- 保存済みURLのクイック起動 -->
+      <div class="quickbar" id="quickBar"></div>
+
+      <!-- URL管理（登録・並べ替え・削除） -->
+      <div class="savebar">
+        <input id="newUrlInput" placeholder="URLを登録（https://...）" style="flex:1">
+        <button id="addUrlBtn" class="ghost2">URLを追加</button>
       </div>
+      <div id="urlList" class="url-list"></div>
+
       <iframe id="reqFrame" title="request" referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write;fullscreen *"></iframe>
       <p class="muted" style="margin-top:8px">
         ※ サイト側が <code>X-Frame-Options</code> / <code>frame-ancestors</code> で禁止している場合、iframeに表示できません。
