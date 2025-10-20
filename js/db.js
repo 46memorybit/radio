@@ -1,97 +1,100 @@
-// IndexedDB ラッパ（ID返却を保証／即時反映用）
-const DB_NAME = 'request-pwa-db';
-const DB_VER  = 2;
-const STORE_TITLES = 'titles'; // {id, title, text, created}
-const STORE_URLS   = 'urls';   // {id, url, order, created}
+// db.js (ESM)
+const DB_NAME = 'pwaStore';
+const DB_VER = 1;
+const STORE_TEXTS = 'texts';
+const STORE_URLS  = 'urls';
 
-const openDB = () => new Promise((resolve, reject) => {
-  const req = indexedDB.open(DB_NAME, DB_VER);
-  req.onupgradeneeded = () => {
-    const db = req.result;
-    if (!db.objectStoreNames.contains(STORE_TITLES)) {
-      const s = db.createObjectStore(STORE_TITLES, { keyPath: 'id', autoIncrement: true });
-      s.createIndex('created', 'created', { unique: false });
-    }
-    if (!db.objectStoreNames.contains(STORE_URLS)) {
-      const s = db.createObjectStore(STORE_URLS, { keyPath: 'id', autoIncrement: true });
-      s.createIndex('order', 'order', { unique: false });
-      s.createIndex('created', 'created', { unique: false });
-    }
-  };
-  req.onsuccess = () => resolve(req.result);
-  req.onerror   = () => reject(req.error);
-});
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_TEXTS)) {
+        const s = db.createObjectStore(STORE_TEXTS, { keyPath: 'id', autoIncrement: true });
+        s.createIndex('by_created', 'createdAt');
+        s.createIndex('by_title', 'title');
+      }
+      if (!db.objectStoreNames.contains(STORE_URLS)) {
+        const s = db.createObjectStore(STORE_URLS, { keyPath: 'id', autoIncrement: true });
+        s.createIndex('by_order', 'order');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
 
-const txWrap = async (store, mode, work) => {
+async function tx(store, mode, fn) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, mode);
-    const st = tx.objectStore(store);
-    work(st, resolve, reject);
-    tx.onerror = () => reject(tx.error);
+    const t = db.transaction(store, mode);
+    const s = t.objectStore(store);
+    const res = fn(s);
+    t.oncomplete = () => resolve(res);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
   });
-};
+}
 
-/* ===== Titles ===== */
-export const addTitle = (title, text) =>
-  txWrap(STORE_TITLES, 'readwrite', (st, resolve, reject) => {
-    const req = st.add({ title, text, created: Date.now() });
-    req.onsuccess = () => resolve(req.result); // id を返す
-    req.onerror   = () => reject(req.error);
-  });
-
-export const listTitles = () =>
-  txWrap(STORE_TITLES, 'readonly', (st, resolve) => {
-    const req = st.getAll();
-    req.onsuccess = () => resolve((req.result || []).sort((a,b)=>a.created-b.created));
-  });
-
-export const deleteTitle = (id) =>
-  txWrap(STORE_TITLES, 'readwrite', (st, resolve) => {
-    st.delete(Number(id)); resolve(true);
-  });
-
-export const clearTitles = () =>
-  txWrap(STORE_TITLES, 'readwrite', (st, resolve) => { st.clear(); resolve(true); });
-
-/* ===== URLs ===== */
-export const addUrl = async (url) => {
-  const urls = await listUrls();
-  const order = urls.length;
-  return txWrap(STORE_URLS, 'readwrite', (st, resolve, reject) => {
-    const req = st.add({ url, order, created: Date.now() });
-    req.onsuccess = () => resolve(req.result); // id
-    req.onerror   = () => reject(req.error);
-  });
-};
-
-export const listUrls = () =>
-  txWrap(STORE_URLS, 'readonly', (st, resolve) => {
-    const idx = st.index('order');
-    const out = [];
-    idx.openCursor().onsuccess = (e) => {
-      const cur = e.target.result;
-      if (cur) { out.push(cur.value); cur.continue(); } else { resolve(out); }
+/* === TEXTS === */
+export async function addText({ title, body }) {
+  const createdAt = Date.now();
+  return tx(STORE_TEXTS, 'readwrite', (s) => s.add({ title, body, createdAt }));
+}
+export async function getAllTexts() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(STORE_TEXTS, 'readonly');
+    const s = t.objectStore(STORE_TEXTS);
+    const req = s.getAll();
+    req.onsuccess = () => {
+      const list = (req.result || []).sort((a,b)=> a.createdAt - b.createdAt);
+      resolve(list);
     };
+    req.onerror = () => reject(req.error);
   });
+}
+export async function deleteText(id) {
+  return tx(STORE_TEXTS, 'readwrite', (s) => s.delete(id));
+}
 
-export const deleteUrl = (id) =>
-  txWrap(STORE_URLS, 'readwrite', (st, resolve) => { st.delete(Number(id)); resolve(true); });
-
-export const clearUrls = () =>
-  txWrap(STORE_URLS, 'readwrite', (st, resolve) => { st.clear(); resolve(true); });
-
-export const saveOrder = async (orderedIds) => {
-  const all = await listUrls();
-  const map = new Map(all.map(v => [String(v.id), v]));
-  const reordered = orderedIds.map((id, i) => ({ ...map.get(String(id)), order: i }));
-  return txWrap(STORE_URLS, 'readwrite', (st, resolve) => {
-    reordered.forEach(v => st.put(v));
-    resolve(true);
+/* === URLS === */
+export async function addUrl({ url }) {
+  const all = await getAllUrls();
+  const maxOrder = all.reduce((m, x) => Math.max(m, x.order ?? 0), -1);
+  const order = maxOrder + 1;
+  return tx(STORE_URLS, 'readwrite', (s) => s.add({ url, order, createdAt: Date.now() }));
+}
+export async function getAllUrls() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(STORE_URLS, 'readonly');
+    const s = t.objectStore(STORE_URLS);
+    const req = s.getAll();
+    req.onsuccess = () => {
+      const list = (req.result || []).sort((a,b)=> (a.order ?? 0) - (b.order ?? 0));
+      resolve(list);
+    };
+    req.onerror = () => reject(req.error);
   });
-};
-
-export const exportAll = async () => {
-  const [titles, urls] = await Promise.all([listTitles(), listUrls()]);
-  return { titles, urls };
-};
+}
+export async function updateUrlOrder(id, newOrder) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(STORE_URLS, 'readwrite');
+    const s = t.objectStore(STORE_URLS);
+    const getReq = s.get(id);
+    getReq.onsuccess = () => {
+      const item = getReq.result;
+      if (!item) return reject(new Error('not found'));
+      item.order = newOrder;
+      const putReq = s.put(item);
+      putReq.onsuccess = () => resolve(true);
+      putReq.onerror = () => reject(putReq.error);
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+export async function deleteUrl(id) {
+  return tx(STORE_URLS, 'readwrite', (s) => s.delete(id));
+}
