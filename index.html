@@ -9,124 +9,80 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./assets/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-
   <style>
     :root { color-scheme: light dark; }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #0b1020;
-      color: #e5e7eb;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-    }
-    a { color: inherit; }
-    input, textarea, select, button { font-size: 16px !important; }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:#0b1020;color:#e5e7eb;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif}
+    a{color:inherit}
+    input,textarea,select,button{font-size:16px!important}
 
-    /* === フローティング固定：コピーエリア（20vh） === */
-    .copy-float {
-      position: fixed;
-      inset: 0 0 auto 0;
-      height: 20vh;
-      z-index: 1000;
-      background: rgba(11,16,32,0.96);
-      backdrop-filter: blur(6px);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 6px;
-      padding: 10px;
+    /* コピーエリア(固定20vh) */
+    .copy-float{
+      position:fixed;inset:0 0 auto 0;height:20vh;z-index:1000;
+      background:rgba(11,16,32,.96);backdrop-filter:blur(6px);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:grid;grid-template-rows:auto 1fr;gap:6px;padding:10px
     }
-    .copy-head { display: flex; align-items: center; justify-content: space-between; }
-    .copy-title { font-weight: 700; }
-    .copy-list { overflow: auto; display: grid; gap: 6px; }
-    .pill {
-      display: inline-flex; align-items: center; justify-content: space-between;
-      padding: 6px 10px; border-radius: 999px;
-      background: #131a33; border: 1px solid rgba(255,255,255,0.1);
-      cursor: pointer; user-select: none; white-space: nowrap;
-    }
-    .pill:hover { background: #18224b; }
+    .copy-head{display:flex;align-items:center;justify-content:space-between}
+    .copy-title{font-weight:700}
+    .copy-list{overflow:auto;display:grid;grid-auto-rows:minmax(36px,auto);gap:6px;min-height:0}
+    .pill{display:inline-flex;align-items:center;gap:10px;justify-content:space-between;
+      padding:6px 10px;border-radius:999px;background:#131a33;border:1px solid rgba(255,255,255,.1);
+      white-space:nowrap;cursor:pointer}
+    .pill:hover{background:#18224b}
+    .pill small{opacity:.7}
 
-    /* === 登録エリア（30vh） === */
-    .register {
-      position: absolute;
-      top: 20vh; /* コピーエリアの下 */
-      left: 0; right: 0;
-      height: 30vh;
-      padding: 10px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      background: #0b1020;
+    /* 登録エリア(30vhに拡張・2カラム固定) */
+    .register{
+      position:absolute;top:20vh;left:0;right:0;height:30vh;padding:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;background:#0b1020
     }
-    .card {
-      border: 1px solid rgba(255,255,255,0.1);
-      background: #0e142a;
-      border-radius: 12px;
-      padding: 10px;
-      display: grid;
-      grid-template-rows: auto auto 1fr auto;
-      gap: 8px;
-      overflow: auto;
+    .card{
+      border:1px solid rgba(255,255,255,.1);background:#0e142a;border-radius:12px;padding:10px;
+      display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;overflow:auto;min-width:0
     }
-    .card h3 { margin: 0; font-size: 13px; opacity: 0.9; }
-    .row { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
-    .input, .textarea {
-      width: 100%; background: #0b1329; color: #e5e7eb;
-      border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);
-      padding: 8px 10px;
-    }
-    .textarea { resize: none; }
-    .btn {
-      background: #1e2a5a; border: 1px solid rgba(255,255,255,0.12);
-      color: #e5e7eb; padding: 8px 12px; border-radius: 8px; cursor: pointer;
-    }
-    .btn:hover { background: #25326c; }
-    .btn-ghost {
-      background: transparent; border: 1px dashed rgba(255,255,255,0.2);
-      color: #aaa;
-    }
-    .urllist { overflow: auto; display: grid; gap: 6px; }
-    .url-item {
-      display: grid; grid-template-columns: 24px 1fr auto auto; gap: 6px; align-items: center;
-      background: #0b1329; border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px; padding: 6px 8px;
-    }
-    .drag { cursor: grab; }
-    .req-btn {
-      width: 80%; height: 40px;
-      background: #1e2a5a; border-radius: 999px;
-      color: #e5e7eb; border: 1px solid rgba(255,255,255,0.1);
-    }
+    .card h3{margin:0;font-size:13px;opacity:.9}
+    .row{display:grid;grid-template-columns:1fr auto;gap:6px}
+    .input,.textarea{width:100%;background:#0b1329;color:#e5e7eb;border-radius:8px;
+      border:1px solid rgba(255,255,255,.12);padding:8px 10px;min-width:0}
+    .textarea{resize:none;min-height:0}
+    .btn{background:#1e2a5a;border:1px solid rgba(255,255,255,.12);color:#e5e7eb;
+      padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+    .btn:hover{background:#25326c}
+    .btn-ghost{background:transparent;border:1px dashed rgba(255,255,255,.2);color:#aaa;white-space:nowrap}
 
-    /* === リクエストエリア（固定80vh） === */
-    .request {
-      position: absolute;
-      top: 50vh; /* コピー20 + 登録30 */
-      left: 0; right: 0;
-      height: 80vh;
-      display: grid;
-      grid-template-rows: 10% 90%;
-      background: #0b1020;
-    }
-    .req-controls {
-      display: grid; grid-template-columns: 1fr 1fr;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    .half { display: flex; align-items: center; justify-content: center; }
-    .viewer { position: relative; }
-    .viewer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+    .urllist{overflow:auto;display:grid;gap:6px;min-height:0}
+    .url-item{display:grid;grid-template-columns:24px 1fr auto auto;gap:6px;align-items:center;
+      background:#0b1329;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 8px;min-width:0}
+    .drag{cursor:grab;user-select:none;opacity:.8}
+    .del{opacity:.8}
+    .url-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .url-item.dragging{opacity:.6;border-style:dashed}
 
-    /* スマホ調整 */
-    @media (max-width: 430px) {
-      .register { gap: 8px; padding: 8px; grid-template-columns: 1fr 1fr; height: 30vh; }
-      .card { padding: 8px; gap: 6px; border-radius: 10px; }
-      .input, .textarea { padding: 6px 8px; }
-      .btn { padding: 6px 10px; font-size: 14px; }
-      .btn-ghost { font-size: 12px; }
-      .req-btn { height: 38px; width: 90%; }
+    /* リクエストエリア(固定80vh) */
+    .request{
+      position:absolute;top:50vh;left:0;right:0;height:80vh;
+      display:grid;grid-template-rows:10% 90%;background:#0b1020
+    }
+    .req-controls{display:grid;grid-template-columns:1fr 1fr;
+      border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+    .half{display:flex;align-items:center;justify-content:center}
+    .req-btn{width:min(240px,90%);height:40px;background:#1e2a5a;border-radius:999px;
+      color:#e5e7eb;border:1px solid rgba(255,255,255,.1);cursor:pointer}
+    .viewer{position:relative}
+    .viewer iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+      background:rgba(0,0,0,.85);color:#fff;padding:10px 14px;border-radius:999px;z-index:2000;
+      pointer-events:none;opacity:0;transition:opacity .2s ease}
+    .toast.show{opacity:1}
+
+    @media (max-width:430px){
+      .register{height:30vh;gap:8px;padding:8px}
+      .card{padding:8px;gap:6px;border-radius:10px}
+      .input,.textarea{padding:6px 8px}
+      .btn,.btn-ghost{padding:6px 10px}
     }
   </style>
 </head>
@@ -141,52 +97,55 @@
   </section>
 
   <!-- 登録エリア -->
-  <section class="register">
+  <section class="register" aria-label="登録エリア">
     <!-- 左：テキスト登録 -->
     <div class="card">
       <h3>テキスト登録</h3>
       <div class="row">
-        <input id="titleInput" class="input" placeholder="タイトル">
-        <button id="saveTextBtn" class="btn">保存</button>
+        <input id="titleInput" class="input" placeholder="タイトル" />
+        <button id="saveTextBtn" class="btn" type="button">保存</button>
       </div>
       <textarea id="textInput" class="textarea" placeholder="コピーしたい本文を入力"></textarea>
       <div class="row">
-        <button id="exportTextBtn" class="btn-ghost">エクスポート</button>
-        <button id="clearTextBtn" class="btn-ghost">全削除</button>
+        <button id="exportTextBtn" class="btn-ghost" type="button">エクスポート(JSON)</button>
+        <button id="clearTextBtn" class="btn-ghost" type="button">全削除</button>
       </div>
     </div>
 
-    <!-- 右：URL登録 -->
+    <!-- 右：リクエストURL登録 -->
     <div class="card">
-      <h3>リクエストURL登録</h3>
+      <h3>リクエストURL登録（ドラッグで並べ替え可）</h3>
       <div class="row">
-        <input id="urlInput" class="input" placeholder="https://...">
-        <button id="addUrlBtn" class="btn">追加</button>
+        <input id="urlInput" class="input" placeholder="https://..." />
+        <button id="addUrlBtn" class="btn" type="button">追加</button>
       </div>
-      <div id="urlList" class="urllist"></div>
+      <div id="urlList" class="urllist" aria-live="polite"></div>
       <div class="row">
-        <button id="exportUrlBtn" class="btn-ghost">エクスポート</button>
-        <button id="clearUrlBtn" class="btn-ghost">全削除</button>
+        <button id="exportUrlBtn" class="btn-ghost" type="button">エクスポート(JSON)</button>
+        <button id="clearUrlBtn" class="btn-ghost" type="button">全削除</button>
       </div>
     </div>
   </section>
 
   <!-- リクエストエリア -->
-  <section class="request">
+  <section class="request" aria-label="リクエストエリア">
     <div class="req-controls">
-      <div class="half"><button id="prevBtn" class="req-btn">← 前へ</button></div>
-      <div class="half"><button id="nextBtn" class="req-btn">次へ →</button></div>
+      <div class="half"><button id="prevBtn" class="req-btn" type="button">← 前へ</button></div>
+      <div class="half"><button id="nextBtn" class="req-btn" type="button">次へ →</button></div>
     </div>
     <div class="viewer">
-      <iframe id="viewer" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+      <iframe id="viewer" title="リクエストビューア"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
     </div>
   </section>
 
-  <div id="toast" class="toast" role="status"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <!-- v=2 はキャッシュ破り用（SWの古いapp.jsを掴まないため） -->
   <script type="module">
-    import * as DB from './db.js';
-    import { App } from './app.js';
+    import * as DB from './db.js?v=2';
+    import { App } from './app.js?v=2';
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').catch(console.error);
