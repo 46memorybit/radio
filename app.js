@@ -55,7 +55,7 @@ export const App = (() => {
         }
         toast('コピーしました');
       });
-      // 長押し削除
+      // 長押し削除（確認付き）
       let timer = null;
       btn.addEventListener('mousedown', () => {
         timer = setTimeout(async () => {
@@ -75,8 +75,6 @@ export const App = (() => {
       row.className = 'url-item';
       row.dataset.id = it.id;
 
-      const drag = document.createElement('span'); drag.className = 'drag'; drag.textContent = '↕';
-
       const main = document.createElement('div'); main.className = 'url-main';
       const title = document.createElement('div'); title.className = 'url-title';
       title.textContent = it.title || hostnameOf(it.url) || '(タイトル取得中)';
@@ -89,20 +87,23 @@ export const App = (() => {
 
       const del = document.createElement('button'); del.type='button'; del.className='btn'; del.textContent='削除';
       del.addEventListener('click', async () => {
+        if (!confirm('このURLを削除しますか？')) return;
         await DB.deleteUrl(it.id);
         await resequence(); await loadUrls(true);
         toast('削除しました');
       });
 
-      row.append(drag, main, goBtn, del);
+      const handle = document.createElement('div'); handle.className = 'handle'; handle.title = 'ドラッグで並べ替え';
+
+      row.append(main, goBtn, del, handle);
       list.appendChild(row);
     });
 
-    // SortableJS 初期化（1度だけ）
+    // SortableJS 初期化（1回だけ）: 右端≡をハンドルに
     if (!list._sortable && SortableLib) {
       list._sortable = SortableLib.create(list, {
         animation: 150,
-        handle: '.drag',
+        handle: '.handle',
         ghostClass: 'dragging',
         onEnd: async () => {
           const newOrder = Array.from(list.children).map(li => li.dataset.id);
@@ -146,7 +147,7 @@ export const App = (() => {
   /* ---------- init ---------- */
   const init = ({ DB: db, Sortable }) => {
     DB = db;
-    SortableLib = Sortable; // グローバルから渡されたSortable
+    SortableLib = Sortable;
 
     el = {
       copyList: qs('#copyList'), copyCount: qs('#copyCount'),
