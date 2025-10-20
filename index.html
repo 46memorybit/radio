@@ -22,7 +22,7 @@
     }
     a { color: inherit; }
 
-    /* 入力時のモバイル拡大防止 */
+    /* モバイルでのズーム防止 */
     input, textarea, select, button { font-size: 16px !important; }
 
     /* === フローティング固定：テキストコピーエリア（20vh） === */
@@ -67,17 +67,16 @@
     /* === 登録エリア（20vh／左右1:1固定） === */
     .register {
       position: absolute;
-      top: 20vh; /* フローティングの下に配置 */
+      top: 20vh; /* コピーエリア直下 */
       left: 0;
       right: 0;
       height: 20vh;
       padding: 12px;
       display: grid;
-      grid-template-columns: 1fr 1fr; /* 左右半分で固定（スマホでも崩さない） */
+      grid-template-columns: 1fr 1fr; /* 常に2カラム */
       gap: 12px;
       background: #0b1020;
     }
-
     .card {
       height: 100%;
       border: 1px solid rgba(255,255,255,0.08);
@@ -87,13 +86,11 @@
       display: grid;
       grid-template-rows: auto auto 1fr; /* 見出し／操作行／本文(スクロール) */
       gap: 10px;
-      overflow: auto;          /* はみ出し対策（内部スクロール） */
-      min-width: 0;            /* グリッド圧縮時のオーバーフロー防止 */
+      overflow: auto;   /* 内部スクロール */
+      min-width: 0;     /* つぶれ防止 */
     }
-
     .card h3 { margin: 0; font-size: 14px; opacity: .9; }
     .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-
     .input, .textarea {
       width: 100%;
       background: #0b1329;
@@ -104,10 +101,7 @@
       outline: none;
       min-width: 0;
     }
-    .textarea {
-      resize: none;
-      min-height: 0;   /* グリッド内での伸びすぎ防止 */
-    }
+    .textarea { resize: none; min-height: 0; }
 
     .btn {
       background: #1e2a5a;
@@ -119,7 +113,6 @@
       white-space: nowrap;
     }
     .btn:hover { background: #223068; }
-
     .btn-ghost {
       background: transparent;
       border: 1px dashed rgba(255,255,255,0.18);
@@ -133,11 +126,11 @@
       display: grid;
       grid-auto-rows: minmax(36px, auto);
       gap: 8px;
-      min-height: 0; /* 内部スクロールのため */
+      min-height: 0;
     }
     .url-item {
       display: grid;
-      grid-template-columns: 28px 1fr auto auto;
+      grid-template-columns: 24px 1fr auto auto;
       gap: 8px;
       align-items: center;
       padding: 8px 10px;
@@ -154,13 +147,11 @@
     /* === リクエストエリア（80vh） === */
     .request {
       position: absolute;
-      top: 40vh; /* コピー(20vh)＋登録(20vh)の下 */
-      left: 0;
-      right: 0;
+      top: 40vh; /* コピー(20vh)+登録(20vh)の下 */
+      left: 0; right: 0;
       height: 80vh;
       display: grid;
       grid-template-rows: 10% 90%;
-      gap: 0;
       background: #0b1020;
     }
     .req-controls {
@@ -171,7 +162,7 @@
     }
     .half { display: flex; align-items: center; justify-content: center; gap: 10px; }
     .req-btn {
-      width: min(260px, 80%);
+      width: min(240px, 82%);
       height: 44px;
       background: #1e2a5a;
       border: 1px solid rgba(255,255,255,0.12);
@@ -181,35 +172,45 @@
     }
     .viewer { position: relative; }
     .viewer iframe {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-      background: #000;
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border: 0; background: #000;
     }
 
     /* === トースト === */
     .toast {
-      position: fixed;
-      left: 50%;
-      bottom: 18px;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.85);
-      color: #fff;
-      padding: 10px 14px;
-      border-radius: 999px;
-      z-index: 2000;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity .2s ease;
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 14px;
+      border-radius: 999px; z-index: 2000; pointer-events: none;
+      opacity: 0; transition: opacity .2s ease;
     }
     .toast.show { opacity: 1; }
 
-    /* === スマホでも 1:1 を維持（崩さない） === */
-    @media (max-width: 900px) {
-      .register { grid-template-columns: 1fr 1fr; height: 20vh; }
-      .row { grid-template-columns: 1fr auto; }
+    /* ====== スマホ最適化（≤430px） ====== */
+    @media (max-width: 430px) {
+      .copy-float { padding: 8px 10px; gap: 6px; }
+      .copy-title { font-size: 14px; }
+      .pill { padding: 6px 10px; }
+
+      .register {
+        padding: 8px;
+        gap: 8px;
+        grid-template-columns: 1fr 1fr; /* 2カラム維持 */
+        height: 20vh; /* 指定維持 */
+      }
+      .card {
+        border-radius: 12px;
+        padding: 8px;
+        gap: 8px;
+      }
+      .card h3 { font-size: 12px; }
+      .row { grid-template-columns: 1fr auto; gap: 6px; }
+      .input, .textarea { padding: 8px 10px; }
+      .btn { padding: 8px 10px; }
+      .btn-ghost { padding: 8px 10px; font-size: 12px; }
+
+      .urllist { gap: 6px; }
+      .url-item { grid-template-columns: 22px 1fr auto auto; padding: 6px 8px; border-radius: 10px; }
+      .req-btn { height: 40px; width: 90%; }
     }
   </style>
 </head>
@@ -272,14 +273,12 @@
     import * as DB from './db.js';
     import { App } from './app.js';
 
-    // Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').catch(console.error);
       });
     }
 
-    // アプリ初期化
     App.init({ DB });
   </script>
 </body>
