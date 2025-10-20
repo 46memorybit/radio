@@ -1,101 +1,94 @@
-// IndexedDB ラッパー
+// IndexedDB ラッパ（ID返却を保証／即時反映用）
 const DB_NAME = 'request-pwa-db';
-const DB_VER = 1;
+const DB_VER  = 2;
 const STORE_TITLES = 'titles'; // {id, title, text, created}
 const STORE_URLS   = 'urls';   // {id, url, order, created}
 
-const openDB = () =>
-  new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = (e) => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_TITLES)) {
-        const s = db.createObjectStore(STORE_TITLES, { keyPath: 'id', autoIncrement: true });
-        s.createIndex('created', 'created', { unique: false });
-      }
-      if (!db.objectStoreNames.contains(STORE_URLS)) {
-        const s = db.createObjectStore(STORE_URLS, { keyPath: 'id', autoIncrement: true });
-        s.createIndex('order', 'order', { unique: false });
-        s.createIndex('created', 'created', { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+const openDB = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open(DB_NAME, DB_VER);
+  req.onupgradeneeded = () => {
+    const db = req.result;
+    if (!db.objectStoreNames.contains(STORE_TITLES)) {
+      const s = db.createObjectStore(STORE_TITLES, { keyPath: 'id', autoIncrement: true });
+      s.createIndex('created', 'created', { unique: false });
+    }
+    if (!db.objectStoreNames.contains(STORE_URLS)) {
+      const s = db.createObjectStore(STORE_URLS, { keyPath: 'id', autoIncrement: true });
+      s.createIndex('order', 'order', { unique: false });
+      s.createIndex('created', 'created', { unique: false });
+    }
+  };
+  req.onsuccess = () => resolve(req.result);
+  req.onerror   = () => reject(req.error);
+});
 
-const withStore = async (store, mode, fn) => {
+const txWrap = async (store, mode, work) => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, mode);
     const st = tx.objectStore(store);
-    const result = fn(st);
-    tx.oncomplete = () => resolve(result);
+    work(st, resolve, reject);
     tx.onerror = () => reject(tx.error);
   });
 };
 
-// ---- Titles ----
+/* ===== Titles ===== */
 export const addTitle = (title, text) =>
-  withStore(STORE_TITLES, 'readwrite', (st) =>
-    st.add({ title, text, created: Date.now() })
-  );
+  txWrap(STORE_TITLES, 'readwrite', (st, resolve, reject) => {
+    const req = st.add({ title, text, created: Date.now() });
+    req.onsuccess = () => resolve(req.result); // id を返す
+    req.onerror   = () => reject(req.error);
+  });
 
 export const listTitles = () =>
-  withStore(STORE_TITLES, 'readonly', (st) =>
-    new Promise((resolve) => {
-      const out = [];
-      st.openCursor().onsuccess = (e) => {
-        const cur = e.target.result;
-        if (cur) { out.push(cur.value); cur.continue(); } else { resolve(out); }
-      };
-    })
-  );
+  txWrap(STORE_TITLES, 'readonly', (st, resolve) => {
+    const req = st.getAll();
+    req.onsuccess = () => resolve((req.result || []).sort((a,b)=>a.created-b.created));
+  });
 
 export const deleteTitle = (id) =>
-  withStore(STORE_TITLES, 'readwrite', (st) => st.delete(id));
+  txWrap(STORE_TITLES, 'readwrite', (st, resolve) => {
+    st.delete(Number(id)); resolve(true);
+  });
 
 export const clearTitles = () =>
-  withStore(STORE_TITLES, 'readwrite', (st) => st.clear());
+  txWrap(STORE_TITLES, 'readwrite', (st, resolve) => { st.clear(); resolve(true); });
 
-// ---- URLs ----
+/* ===== URLs ===== */
 export const addUrl = async (url) => {
   const urls = await listUrls();
-  const order = urls.length; // 末尾に
-  return withStore(STORE_URLS, 'readwrite', (st) =>
-    st.add({ url, order, created: Date.now() })
-  );
+  const order = urls.length;
+  return txWrap(STORE_URLS, 'readwrite', (st, resolve, reject) => {
+    const req = st.add({ url, order, created: Date.now() });
+    req.onsuccess = () => resolve(req.result); // id
+    req.onerror   = () => reject(req.error);
+  });
 };
 
 export const listUrls = () =>
-  withStore(STORE_URLS, 'readonly', (st) =>
-    new Promise((resolve) => {
-      const out = [];
-      st.index('order').openCursor().onsuccess = (e) => {
-        const cur = e.target.result;
-        if (cur) { out.push(cur.value); cur.continue(); } else { resolve(out); }
-      };
-    })
-  );
+  txWrap(STORE_URLS, 'readonly', (st, resolve) => {
+    const idx = st.index('order');
+    const out = [];
+    idx.openCursor().onsuccess = (e) => {
+      const cur = e.target.result;
+      if (cur) { out.push(cur.value); cur.continue(); } else { resolve(out); }
+    };
+  });
 
-export const deleteUrl = async (id) => {
-  const urls = await listUrls();
-  await withStore(STORE_URLS, 'readwrite', (st) => st.delete(id));
-  // order 再採番
-  const remains = (await listUrls()).sort((a,b)=>a.order-b.order).map((v, i) => ({...v, order: i}));
-  await withStore(STORE_URLS, 'readwrite', (st) => remains.forEach(v => st.put(v)));
-};
+export const deleteUrl = (id) =>
+  txWrap(STORE_URLS, 'readwrite', (st, resolve) => { st.delete(Number(id)); resolve(true); });
 
 export const clearUrls = () =>
-  withStore(STORE_URLS, 'readwrite', (st) => st.clear());
+  txWrap(STORE_URLS, 'readwrite', (st, resolve) => { st.clear(); resolve(true); });
 
 export const saveOrder = async (orderedIds) => {
   const all = await listUrls();
-  const byId = new Map(all.map(v => [String(v.id), v]));
-  const reordered = orderedIds.map((id, idx) => {
-    const it = byId.get(String(id));
-    return { ...it, order: idx };
+  const map = new Map(all.map(v => [String(v.id), v]));
+  const reordered = orderedIds.map((id, i) => ({ ...map.get(String(id)), order: i }));
+  return txWrap(STORE_URLS, 'readwrite', (st, resolve) => {
+    reordered.forEach(v => st.put(v));
+    resolve(true);
   });
-  await withStore(STORE_URLS, 'readwrite', (st) => reordered.forEach(v => st.put(v)));
 };
 
 export const exportAll = async () => {
