@@ -11,8 +11,7 @@
   <style>
     :root{
       --copy-h: 20vh;     /* フローティング固定：コピーエリア */
-      --register-h: 80vh; /* 登録エリア（ご指定どおり80%） */
-      --request-h: 80vh;  /* リクエストエリア（スクロールで下に表示） */
+      --request-h: 80vh;  /* 固定：リクエストエリア */
       color-scheme: light dark;
     }
     * { box-sizing: border-box; }
@@ -45,15 +44,14 @@
     /* === 本文はコピー分の余白を確保 === */
     main { padding-top: var(--copy-h); }
 
-    /* === 80%: 登録エリア（左:テキスト／右:URL） === */
+    /* === 登録エリア（可変・縦並び） === */
     .register {
-      height: var(--register-h);
       padding: 10px 12px;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      display: grid; grid-template-rows: auto auto; gap: 12px;
       background: #0b1020;
     }
     .card {
-      height: 100%; border: 1px solid rgba(255,255,255,0.08); background: #0e142a;
+      border: 1px solid rgba(255,255,255,0.08); background: #0e142a;
       border-radius: 14px; padding: 10px;
       display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
       overflow: auto; min-width: 0;
@@ -72,18 +70,19 @@
     .btn:hover { background: #223068; }
     .btn-ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.18); }
 
-    /* URLリスト（SortableJSで並べ替え） */
+    /* URLリスト（SortableJS） */
     .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(40px,auto); gap: 8px; min-height: 0; }
     .url-item {
-      display: grid; grid-template-columns: 24px 1fr auto auto; gap: 8px; align-items: center;
+      display: grid; grid-template-columns: 1fr auto auto 28px; gap: 8px; align-items: center;
       padding: 8px 10px; background: #0b1329; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; min-width: 0;
     }
-    .drag { cursor: grab; opacity: .8; user-select: none; }
     .url-main { overflow: hidden; }
     .url-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .url-sub { font-size: 12px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .handle { cursor: grab; user-select: none; text-align: center; opacity: .9; }
+    .handle::before { content: "≡"; font-size: 18px; line-height: 1; display: inline-block; }
 
-    /* === 80%: リクエストエリア（上10%:ボタン／下90%:iframe） === */
+    /* === 80%: リクエストエリア（固定高：上10%/下90%） === */
     .request {
       height: var(--request-h);
       display: grid; grid-template-rows: 10% 90%;
@@ -107,14 +106,12 @@
     }
     .toast.show { opacity: 1; }
 
-    /* モバイル最適化（2カラム維持） */
     @media (max-width: 430px) {
-      .register { grid-template-columns: 1fr 1fr; padding: 8px; gap: 8px; }
       .card { padding: 8px; gap: 6px; border-radius: 12px; }
       .row { gap: 6px; }
       .btn, .btn-ghost { padding: 6px 10px; }
       .req-btn { height: 40px; }
-      .url-item { grid-template-columns: 22px 1fr auto auto; padding: 6px 8px; }
+      .url-item { grid-template-columns: 1fr auto auto 28px; padding: 6px 8px; }
     }
   </style>
 </head>
@@ -122,17 +119,17 @@
   <!-- 20%: テキストコピーエリア（フローティング固定） -->
   <section class="copy-float" id="copyFloat">
     <div class="copy-head">
-      <div class="copy-title">test保存したタイトル（タップでコピー）</div>
+      <div class="copy-title">保存したタイトル（タップでコピー）</div>
       <div id="copyCount">0 件</div>
     </div>
     <div class="copy-list" id="copyList"></div>
   </section>
 
-  <!-- ページ本体（コピーエリア分の余白を確保） -->
+  <!-- 本体（コピー分の余白を確保） -->
   <main>
-    <!-- 80%: 登録エリア（左:テキスト／右:URL） -->
+    <!-- 登録エリア：縦並び -->
     <section class="register" aria-label="登録エリア">
-      <!-- 左：テキストコンテナ -->
+      <!-- 上：テキストコンテナ -->
       <div class="card">
         <h3>テキスト登録</h3>
         <div class="row">
@@ -146,9 +143,9 @@
         </div>
       </div>
 
-      <!-- 右：リクエストコンテナ -->
+      <!-- 下：リクエストコンテナ -->
       <div class="card">
-        <h3>リクエストURL登録（タイトル自動取得／D&D並べ替え）</h3>
+        <h3>リクエストURL登録（タイトル自動取得／D&D：右端≡ハンドル）</h3>
         <div class="row">
           <input id="urlInput" class="input" placeholder="https://..." />
           <button id="addUrlBtn" class="btn" type="button">追加</button>
@@ -161,7 +158,7 @@
       </div>
     </section>
 
-    <!-- 80%: リクエストエリア -->
+    <!-- 80%: リクエストエリア（固定） -->
     <section class="request" aria-label="リクエストエリア">
       <div class="req-controls">
         <div class="half"><button id="prevBtn" class="req-btn" type="button">← 前へ</button></div>
@@ -175,20 +172,20 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- SortableJS（グローバル） -->
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" integrity="" crossorigin="anonymous"></script>
+  <!-- SortableJS（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" crossorigin="anonymous"></script>
 
   <!-- アプリ本体 -->
   <script type="module">
-    import * as DB from './db.js?v=5';
-    import { App } from './app.js?v=5';
+    import * as DB from './db.js?v=6';
+    import { App } from './app.js?v=6';
 
     if ('serviceWorker' in navigator) {
       addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').catch(console.error);
       });
     }
-    App.init({ DB, Sortable /* グローバルのSortableを注入 */ });
+    App.init({ DB, Sortable });
   </script>
 </body>
 </html>
