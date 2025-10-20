@@ -1,23 +1,22 @@
 export const App = (() => {
   let DB;
-  let state = {
-    urls: [],
-    currentIndex: 0,
-    titles: []
-  };
+  let state = { urls: [], currentIndex: 0, titles: [] };
 
   // DOM
-  let el = {};
   const qs = (s) => document.querySelector(s);
+  let el = {};
 
   const toast = (msg) => {
     const t = el.toast;
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 1300);
+    setTimeout(() => t.classList.remove('show'), 1200);
   };
 
-  // ---- 初期描画 ----
+  const escapeHtml = (s='') =>
+    s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---------- Renderers ---------- */
   const renderTitles = () => {
     const list = el.copyList;
     list.innerHTML = '';
@@ -26,34 +25,31 @@ export const App = (() => {
       pill.type = 'button';
       pill.className = 'pill';
       pill.title = 'タップでコピー';
-      pill.dataset.id = it.id;
+      pill.dataset.id = it.id ?? '';
       pill.innerHTML = `<span>${escapeHtml(it.title || '(無題)')}</span><small>コピー</small>`;
       pill.addEventListener('click', async () => {
+        const text = it.text || '';
         try {
-          await navigator.clipboard.writeText(it.text || '');
-          toast('コピーしました');
+          await navigator.clipboard.writeText(text);
         } catch {
-          // フォールバック
           const ta = document.createElement('textarea');
-          ta.value = it.text || '';
-          document.body.appendChild(ta);
-          ta.select(); document.execCommand('copy');
-          ta.remove();
-          toast('コピーしました');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); ta.remove();
         }
+        toast('コピーしました');
       });
-      // 長押しで削除（モバイル配慮）
-      let pressTimer = null;
+      // 長押し削除
+      let timer = null;
       pill.addEventListener('mousedown', () => {
-        pressTimer = setTimeout(async () => {
+        timer = setTimeout(async () => {
           if (confirm('このタイトルを削除しますか？')) {
             await DB.deleteTitle(it.id);
             await loadTitles();
           }
         }, 700);
       });
-      ['mouseup','mouseleave','touchend','touchcancel'].forEach(evt =>
-        pill.addEventListener(evt, ()=> clearTimeout(pressTimer)));
+      ['mouseup','mouseleave','touchend','touchcancel'].forEach(e =>
+        pill.addEventListener(e, () => clearTimeout(timer)));
 
       list.appendChild(pill);
     });
@@ -78,11 +74,13 @@ export const App = (() => {
       text.textContent = it.url;
 
       const goBtn = document.createElement('button');
+      goBtn.type = 'button';
       goBtn.className = 'btn';
       goBtn.textContent = '表示';
       goBtn.addEventListener('click', () => goToUrlId(it.id));
 
       const del = document.createElement('button');
+      del.type = 'button';
       del.className = 'btn del';
       del.textContent = '削除';
       del.addEventListener('click', async () => {
@@ -106,21 +104,26 @@ export const App = (() => {
       list.appendChild(item);
     });
 
-    // 並べ替えの受け側
-    list.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      const dragging = list.querySelector('.dragging');
-      const after = getDragAfterElement(list, e.clientY);
-      if (after == null) list.appendChild(dragging);
-      else list.insertBefore(dragging, after);
-    });
+    // 受け側（毎回重複バインド防止のため一度だけ付ける）
+    if (!list._dndBound) {
+      list.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const dragging = list.querySelector('.dragging');
+        const after = getDragAfterElement(list, e.clientY);
+        if (!dragging) return;
+        if (after == null) list.appendChild(dragging);
+        else list.insertBefore(dragging, after);
+      });
 
-    list.addEventListener('drop', async () => {
-      const newOrder = Array.from(list.children).map(li => li.dataset.id);
-      await DB.saveOrder(newOrder);
-      await loadUrls();
-      toast('並び順を保存しました');
-    });
+      list.addEventListener('drop', async () => {
+        const newOrder = Array.from(list.children).map(li => li.dataset.id);
+        await DB.saveOrder(newOrder);
+        await loadUrls(true);
+        toast('並び順を保存しました');
+      });
+
+      list._dndBound = true;
+    }
   };
 
   const getDragAfterElement = (container, y) => {
@@ -128,24 +131,17 @@ export const App = (() => {
     return els.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset, element: child };
-      } else {
-        return closest;
-      }
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
     }, { offset: Number.NEGATIVE_INFINITY }).element;
   };
 
   const updateViewer = () => {
     const n = state.urls.length;
-    if (!n) {
-      el.viewer.src = 'about:blank';
-      return;
-    }
+    if (!n) { el.viewer.src = 'about:blank'; return; }
     if (state.currentIndex < 0) state.currentIndex = 0;
     if (state.currentIndex >= n) state.currentIndex = n - 1;
-    const url = state.urls[state.currentIndex].url;
-    el.viewer.src = url;
+    el.viewer.src = state.urls[state.currentIndex].url;
   };
 
   const goPrev = () => {
@@ -153,24 +149,21 @@ export const App = (() => {
     state.currentIndex = (state.currentIndex - 1 + state.urls.length) % state.urls.length;
     updateViewer();
   };
-
   const goNext = () => {
     if (!state.urls.length) return;
     state.currentIndex = (state.currentIndex + 1) % state.urls.length;
     updateViewer();
   };
-
   const goToUrlId = (id) => {
     const idx = state.urls.findIndex(u => u.id === id);
     if (idx >= 0) { state.currentIndex = idx; updateViewer(); }
   };
 
-  // ---- IO ----
+  /* ---------- IO ---------- */
   const loadTitles = async () => {
     state.titles = await DB.listTitles();
     renderTitles();
   };
-
   const loadUrls = async (keepIndex=false) => {
     const curId = state.urls[state.currentIndex]?.id;
     state.urls = await DB.listUrls();
@@ -184,15 +177,9 @@ export const App = (() => {
     updateViewer();
   };
 
-  // ---- Util ----
-  const escapeHtml = (s='') => s.replace(/[&<>"']/g, c =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  // ---- 初期化 ----
+  /* ---------- Init & Events ---------- */
   const init = ({ DB: db }) => {
     DB = db;
-
-    // map DOM
     el = {
       copyList: qs('#copyList'),
       copyCount: qs('#copyCount'),
@@ -212,16 +199,32 @@ export const App = (() => {
       toast: qs('#toast'),
     };
 
-    // events
+    // ---- テキスト保存（楽観更新） ----
     el.saveTextBtn.addEventListener('click', async () => {
       const title = el.titleInput.value.trim();
       const text  = el.textInput.value;
       if (!title) return toast('タイトルを入力してください');
-      await DB.addTitle(title, text);
+
+      // 楽観的にstateへ追加→描画→DB保存
+      const tempId = `temp-${Date.now()}`;
+      state.titles.push({ id: tempId, title, text, created: Date.now() });
+      renderTitles();
+
       el.titleInput.value = '';
       el.textInput.value = '';
-      await loadTitles();
-      toast('保存しました');
+
+      try {
+        const id = await DB.addTitle(title, text);
+        // temp置換のため再ロード（ID確定）
+        await loadTitles();
+        toast('保存しました');
+      } catch (e) {
+        // 失敗：巻き戻し
+        state.titles = state.titles.filter(t => t.id !== tempId);
+        renderTitles();
+        toast('保存に失敗しました');
+        console.error(e);
+      }
     });
 
     el.clearTextBtn.addEventListener('click', async () => {
@@ -231,20 +234,35 @@ export const App = (() => {
         toast('削除しました');
       }
     });
-
     el.exportTextBtn.addEventListener('click', async () => {
       const titles = await DB.listTitles();
       downloadJSON(titles, 'titles.json');
     });
 
+    // ---- URL追加（楽観更新） ----
     el.addUrlBtn.addEventListener('click', async () => {
       const url = el.urlInput.value.trim();
       if (!url) return toast('URLを入力してください');
       try { new URL(url); } catch { return toast('URL形式が不正です'); }
-      await DB.addUrl(url);
+
+      const tempId = `temp-${Date.now()}`;
+      const newItem = { id: tempId, url, order: state.urls.length, created: Date.now() };
+      state.urls.push(newItem);
+      renderUrlList();
+      if (state.urls.length === 1) updateViewer();
+
       el.urlInput.value = '';
-      await loadUrls(true);
-      toast('追加しました');
+
+      try {
+        await DB.addUrl(url);
+        await loadUrls(true);
+        toast('追加しました');
+      } catch (e) {
+        state.urls = state.urls.filter(u => u.id !== tempId);
+        renderUrlList();
+        toast('追加に失敗しました');
+        console.error(e);
+      }
     });
 
     el.clearUrlBtn.addEventListener('click', async () => {
@@ -254,7 +272,6 @@ export const App = (() => {
         toast('削除しました');
       }
     });
-
     el.exportUrlBtn.addEventListener('click', async () => {
       const urls = await DB.listUrls();
       downloadJSON(urls, 'urls.json');
