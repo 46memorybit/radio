@@ -1,12 +1,12 @@
-// App Shell キャッシュ（v4 へ更新）
-const CACHE_NAME = 'reqpwa-v4';
+// App Shell キャッシュ（v7）
+const CACHE_NAME = 'reqpwa-v7';
 const CORE = [
   './',
   './index.html',
-  './app.js?v=4',
-  './db.js?v=4',
+  './app.js?v=7',
+  './db.js?v=7',
   './manifest.webmanifest'
-  // 必要に応じて: './assets/icon-192.png', './assets/icon-512.png'
+  // 必要ならアイコンも: './assets/icon-192.png', './assets/icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
