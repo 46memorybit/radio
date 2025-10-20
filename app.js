@@ -1,5 +1,5 @@
 export const App = (() => {
-  let DB;
+  let DB, SortableLib;
   const qs = (s) => document.querySelector(s);
   let el = {};
   let state = { titles: [], urls: [], currentIndex: 0 };
@@ -12,7 +12,7 @@ export const App = (() => {
   const escapeHtml = (s='') => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hostnameOf = (url) => { try { return new URL(url).hostname; } catch { return url; } };
 
-  // ページタイトル取得（CORS通る場合のみ本文解析／ダメならホスト名→URL）
+  // ページタイトル取得（CORS通過時のみHTML解析）
   const fetchPageTitle = async (url) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
@@ -30,12 +30,9 @@ export const App = (() => {
       if (title) return title;
       return hostnameOf(url);
     } catch {
-      // CORSやタイムアウト等はフォールバック
       const h = hostnameOf(url);
       return h && h !== url ? h : url;
-    } finally {
-      clearTimeout(timer);
-    }
+    } finally { clearTimeout(timer); }
   };
 
   /* ---------- renderers ---------- */
@@ -76,7 +73,6 @@ export const App = (() => {
     state.urls.forEach((it) => {
       const row = document.createElement('div');
       row.className = 'url-item';
-      row.draggable = true;
       row.dataset.id = it.id;
 
       const drag = document.createElement('span'); drag.className = 'drag'; drag.textContent = '↕';
@@ -99,47 +95,23 @@ export const App = (() => {
       });
 
       row.append(drag, main, goBtn, del);
-
-      // D&D
-      row.addEventListener('dragstart', (e) => {
-        row.classList.add('dragging');
-        e.dataTransfer.setData('text/plain', String(it.id));
-      });
-      row.addEventListener('dragend', () => row.classList.remove('dragging'));
-
       list.appendChild(row);
     });
 
-    // D&D 受け側（1回だけバインド）
-    if (!list._bound) {
-      list.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const dragging = list.querySelector('.dragging');
-        const after = getDragAfterElement(list, e.clientY);
-        if (!dragging) return;
-        if (after == null) list.appendChild(dragging);
-        else list.insertBefore(dragging, after);
+    // SortableJS 初期化（1度だけ）
+    if (!list._sortable && SortableLib) {
+      list._sortable = SortableLib.create(list, {
+        animation: 150,
+        handle: '.drag',
+        ghostClass: 'dragging',
+        onEnd: async () => {
+          const newOrder = Array.from(list.children).map(li => li.dataset.id);
+          await DB.saveOrder(newOrder);
+          await loadUrls(true);
+          toast('並び順を保存しました');
+        }
       });
-
-      list.addEventListener('drop', async () => {
-        const newOrder = Array.from(list.children).map(li => li.dataset.id);
-        await DB.saveOrder(newOrder);
-        await loadUrls(true);
-        toast('並び順を保存しました');
-      });
-
-      list._bound = true;
     }
-  };
-
-  const getDragAfterElement = (container, y) => {
-    const els = [...container.querySelectorAll('.url-item:not(.dragging)')];
-    return els.reduce((closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) return { offset, element: child };
-      return closest;
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
   };
 
   const updateViewer = () => {
@@ -172,8 +144,10 @@ export const App = (() => {
   };
 
   /* ---------- init ---------- */
-  const init = ({ DB: db }) => {
+  const init = ({ DB: db, Sortable }) => {
     DB = db;
+    SortableLib = Sortable; // グローバルから渡されたSortable
+
     el = {
       copyList: qs('#copyList'), copyCount: qs('#copyCount'),
       titleInput: qs('#titleInput'), textInput: qs('#textInput'), saveTextBtn: qs('#saveTextBtn'),
@@ -201,13 +175,12 @@ export const App = (() => {
       const a = await DB.listTitles(); downloadJSON(a, 'titles.json');
     });
 
-    // URL追加（タイトル取得→保存→UI更新。取得に失敗したらフォールバック）
+    // URL追加（タイトル取得→保存→UI更新）
     el.addUrlBtn.addEventListener('click', async () => {
       const url = el.urlInput.value.trim();
       if (!url) return toast('URLを入力してください');
       try { new URL(url); } catch { return toast('URL形式が不正です'); }
 
-      // 一旦フォールバックのタイトルで保存→非同期に本タイトルへ更新
       const fallbackTitle = hostnameOf(url) || url;
       const id = await DB.addUrl(url, fallbackTitle);
       el.urlInput.value = '';
@@ -221,8 +194,7 @@ export const App = (() => {
           await DB.updateUrl(id, { title: realTitle });
           await loadUrls(true);
         }
-      } catch { /* 失敗は無視（フォールバックのまま） */ }
-
+      } catch {/* 失敗は無視 */}
       if (state.urls.length === 1) updateViewer();
     });
 
