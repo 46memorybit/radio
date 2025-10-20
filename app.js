@@ -4,7 +4,7 @@ export const App = (() => {
   let el = {};
   let state = { titles: [], urls: [], currentIndex: 0 };
 
-  /* ---------- helpers ---------- */
+  /* ===== helpers ===== */
   const toast = (msg) => {
     const t = el.toast; t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 1200);
@@ -12,7 +12,17 @@ export const App = (() => {
   const escapeHtml = (s='') => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hostnameOf = (url) => { try { return new URL(url).hostname; } catch { return url; } };
 
-  // ページタイトル取得（CORS通過時のみHTML解析）
+  // iOS / 一部Android: 入力に確実にフォーカスするためのフォールバック
+  const enableTouchFocus = () => {
+    const focusable = document.querySelectorAll('input, textarea, select');
+    focusable.forEach(elm => {
+      ['pointerdown','touchstart'].forEach(evt =>
+        elm.addEventListener(evt, () => { if (document.activeElement !== elm) setTimeout(() => elm.focus(), 0); }, { passive: true })
+      );
+    });
+  };
+
+  // ページタイトル取得
   const fetchPageTitle = async (url) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
@@ -35,7 +45,7 @@ export const App = (() => {
     } finally { clearTimeout(timer); }
   };
 
-  /* ---------- renderers ---------- */
+  /* ===== renderers ===== */
   const renderTitles = () => {
     const list = el.copyList; list.innerHTML = '';
     state.titles.forEach((it) => {
@@ -55,7 +65,7 @@ export const App = (() => {
         }
         toast('コピーしました');
       });
-      // 長押し削除（確認付き）
+      // 長押し削除（確認）
       let timer = null;
       btn.addEventListener('mousedown', () => {
         timer = setTimeout(async () => {
@@ -80,7 +90,7 @@ export const App = (() => {
       title.textContent = it.title || hostnameOf(it.url) || '(タイトル取得中)';
       const sub = document.createElement('div'); sub.className = 'url-sub';
       sub.textContent = it.url;
-      main.appendChild(title); main.appendChild(sub);
+      main.append(title, sub);
 
       const goBtn = document.createElement('button'); goBtn.type='button'; goBtn.className='btn'; goBtn.textContent='表示';
       goBtn.addEventListener('click', () => goToUrlId(it.id));
@@ -99,7 +109,7 @@ export const App = (() => {
       list.appendChild(row);
     });
 
-    // SortableJS 初期化（1回だけ）: 右端≡をハンドルに
+    // SortableJS（右端≡でD&D）
     if (!list._sortable && SortableLib) {
       list._sortable = SortableLib.create(list, {
         animation: 150,
@@ -126,7 +136,7 @@ export const App = (() => {
   const goNext = () => { if (!state.urls.length) return; state.currentIndex = (state.currentIndex + 1) % state.urls.length; updateViewer(); };
   const goToUrlId = (id) => { const i = state.urls.findIndex(u => u.id === id); if (i >= 0) { state.currentIndex = i; updateViewer(); } };
 
-  /* ---------- IO ---------- */
+  /* ===== IO ===== */
   const loadTitles = async () => { state.titles = await DB.listTitles(); renderTitles(); };
   const loadUrls   = async (keepIndex=false) => {
     const curId = state.urls[state.currentIndex]?.id;
@@ -144,10 +154,9 @@ export const App = (() => {
     await DB.saveOrder(ids);
   };
 
-  /* ---------- init ---------- */
+  /* ===== init ===== */
   const init = ({ DB: db, Sortable }) => {
-    DB = db;
-    SortableLib = Sortable;
+    DB = db; SortableLib = Sortable;
 
     el = {
       copyList: qs('#copyList'), copyCount: qs('#copyCount'),
@@ -159,6 +168,9 @@ export const App = (() => {
       prevBtn: qs('#prevBtn'), nextBtn: qs('#nextBtn'),
       viewer: qs('#viewer'), toast: qs('#toast'),
     };
+
+    // 入力タップ → 確実にフォーカス
+    enableTouchFocus();
 
     // テキスト保存
     el.saveTextBtn.addEventListener('click', async () => {
@@ -188,14 +200,13 @@ export const App = (() => {
       await loadUrls(true);
       toast('追加しました');
 
-      // 非同期で本タイトル取得→DB更新→再描画
       try {
         const realTitle = await fetchPageTitle(url);
         if (realTitle && realTitle !== fallbackTitle) {
           await DB.updateUrl(id, { title: realTitle });
           await loadUrls(true);
         }
-      } catch {/* 失敗は無視 */}
+      } catch {/* 失敗はフォールバック維持 */}
       if (state.urls.length === 1) updateViewer();
     });
 
