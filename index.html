@@ -10,13 +10,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <style>
     :root{
-      /* 高さはここで集中管理 */
-      --copy-h: 20vh;       /* フローティングのコピーエリア */
-      --register-h: 80vh;   /* 登録エリア（ご要望どおり80%） */
-      --request-h: 80vh;    /* リクエストエリア（比率維持。スクロールで下に表示） */
+      --copy-h: 20vh;     /* フローティング固定：コピーエリア */
+      --register-h: 80vh; /* 登録エリア（ご指定どおり80%） */
+      --request-h: 80vh;  /* リクエストエリア（スクロールで下に表示） */
+      color-scheme: light dark;
     }
-
-    :root { color-scheme: light dark; }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; height: 100%;
@@ -26,7 +24,7 @@
     a { color: inherit; }
     input, textarea, select, button { font-size: 16px !important; } /* iOSズーム防止 */
 
-    /* ===== 20%: テキストコピーエリア（フローティング固定） ===== */
+    /* === 20%: テキストコピー（フローティング固定） === */
     .copy-float {
       position: fixed; inset: 0 0 auto 0; height: var(--copy-h); z-index: 1000;
       background: rgba(11,16,32,0.96); backdrop-filter: blur(6px);
@@ -44,10 +42,10 @@
     .pill:hover { background: #172046; }
     .pill small { opacity: .65; }
 
-    /* ===== コンテンツ全体のオフセット（フローティング分の余白） ===== */
+    /* === 本文はコピー分の余白を確保 === */
     main { padding-top: var(--copy-h); }
 
-    /* ===== 80%: 登録エリア（左:テキスト／右:URL） ===== */
+    /* === 80%: 登録エリア（左:テキスト／右:URL） === */
     .register {
       height: var(--register-h);
       padding: 10px 12px;
@@ -74,17 +72,19 @@
     .btn:hover { background: #223068; }
     .btn-ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.18); }
 
-    /* URLリスト（D&D + 上下ボタン） */
-    .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(36px,auto); gap: 8px; min-height: 0; }
+    /* URLリスト（D&Dで並べ替え） */
+    .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(40px,auto); gap: 8px; min-height: 0; }
     .url-item {
-      display: grid; grid-template-columns: 24px 1fr auto auto auto; gap: 6px; align-items: center;
-      padding: 6px 8px; background: #0b1329; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; min-width: 0;
+      display: grid; grid-template-columns: 24px 1fr auto auto; gap: 8px; align-items: center;
+      padding: 8px 10px; background: #0b1329; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; min-width: 0;
     }
     .drag { cursor: grab; opacity: .8; user-select: none; }
-    .url-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .url-main { overflow: hidden; }
+    .url-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .url-sub { font-size: 12px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .url-item.dragging { opacity: .6; border-style: dashed; }
 
-    /* ===== 80%: リクエストエリア（上10%:ボタン／下90%:iframe） ===== */
+    /* === 80%: リクエストエリア（上10%:ボタン／下90%:iframe） === */
     .request {
       height: var(--request-h);
       display: grid; grid-template-rows: 10% 90%;
@@ -115,7 +115,7 @@
       .row { gap: 6px; }
       .btn, .btn-ghost { padding: 6px 10px; }
       .req-btn { height: 40px; }
-      .url-item { grid-template-columns: 22px 1fr auto auto auto; padding: 6px 8px; }
+      .url-item { grid-template-columns: 22px 1fr auto auto; padding: 6px 8px; }
     }
   </style>
 </head>
@@ -149,7 +149,7 @@
 
       <!-- 右：リクエストコンテナ -->
       <div class="card">
-        <h3>リクエストURL登録（ドラッグ/ボタンで並べ替え可）</h3>
+        <h3>リクエストURL登録（タイトル自動取得／D&D並べ替え）</h3>
         <div class="row">
           <input id="urlInput" class="input" placeholder="https://..." />
           <button id="addUrlBtn" class="btn" type="button">追加</button>
@@ -162,7 +162,7 @@
       </div>
     </section>
 
-    <!-- 80%: リクエストエリア（スクロールでこのセクションに到達） -->
+    <!-- 80%: リクエストエリア -->
     <section class="request" aria-label="リクエストエリア">
       <div class="req-controls">
         <div class="half"><button id="prevBtn" class="req-btn" type="button">← 前へ</button></div>
@@ -177,8 +177,8 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module">
-    import * as DB from './db.js?v=3';
-    import { App } from './app.js?v=3';
+    import * as DB from './db.js?v=4';
+    import { App } from './app.js?v=4';
 
     if ('serviceWorker' in navigator) {
       addEventListener('load', () => {
