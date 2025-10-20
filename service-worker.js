@@ -1,45 +1,45 @@
-/* service-worker.js */
-const CACHE = 'reqpwa-v1';
-const ASSETS = [
+const CACHE_NAME = 'reqpwa-v1';
+const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.webmanifest',
-  './js/app.js',
-  './js/db.js',
-  './assets/icon-192.png',
-  './assets/icon-512.png'
+  './app.js',
+  './db.js',
+  './manifest.webmanifest'
+  // 画像やアイコンがあればここに追記（例: './assets/icon-192.png', './assets/icon-512.png'）
 ];
 
-self.addEventListener('install', (e)=>{
-  e.waitUntil((async()=>{
-    const c = await caches.open(CACHE);
-    await c.addAll(ASSETS);
+self.addEventListener('install', (e) => {
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(CORE_ASSETS);
     self.skipWaiting();
   })());
 });
 
-self.addEventListener('activate', (e)=>{
-  e.waitUntil((async()=>{
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)));
+    await Promise.all(keys.map((k) => k === CACHE_NAME ? null : caches.delete(k)));
     self.clients.claim();
   })());
 });
 
-self.addEventListener('fetch', (e)=>{
-  const url = new URL(e.request.url);
-  if (url.origin === location.origin) {
-    e.respondWith((async()=>{
-      const c = await caches.open(CACHE);
-      const hit = await c.match(e.request);
-      if (hit) return hit;
-      try {
-        const res = await fetch(e.request);
-        if (e.request.method==='GET' && res.status===200) c.put(e.request, res.clone());
-        return res;
-      } catch {
-        return hit || new Response('オフラインで取得できませんでした。', { status: 503 });
-      }
-    })());
-  }
+// App Shell 優先
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return; // POST等は素通し
+  e.respondWith((async () => {
+    const hit = await caches.match(req);
+    if (hit) return hit;
+    try {
+      const res = await fetch(req);
+      const cache = await caches.open(CACHE_NAME);
+      // クロスオリジンの iframe 等は CORS 制約で失敗することがあるため try/catch
+      try { cache.put(req, res.clone()); } catch {}
+      return res;
+    } catch {
+      // オフラインフォールバック（必要なら HTML を返す）
+      return new Response('オフラインです。', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+  })());
 });
