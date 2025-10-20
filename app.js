@@ -10,6 +10,33 @@ export const App = (() => {
     setTimeout(() => t.classList.remove('show'), 1200);
   };
   const escapeHtml = (s='') => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const hostnameOf = (url) => { try { return new URL(url).hostname; } catch { return url; } };
+
+  // ページタイトル取得（CORS通る場合のみ本文解析／ダメならホスト名→URL）
+  const fetchPageTitle = async (url) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await fetch(url, { mode: 'cors', signal: controller.signal, redirect: 'follow' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('text/html')) throw new Error('not html');
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const og = doc.querySelector('meta[property="og:title"]')?.getAttribute('content');
+      const tw = doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content');
+      const tt = doc.querySelector('title')?.textContent;
+      const title = (og || tw || tt || '').trim();
+      if (title) return title;
+      return hostnameOf(url);
+    } catch {
+      // CORSやタイムアウト等はフォールバック
+      const h = hostnameOf(url);
+      return h && h !== url ? h : url;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
   /* ---------- renderers ---------- */
   const renderTitles = () => {
@@ -39,7 +66,6 @@ export const App = (() => {
         }, 700);
       });
       ['mouseup','mouseleave','touchend','touchcancel'].forEach(e => btn.addEventListener(e, () => clearTimeout(timer)));
-
       list.appendChild(btn);
     });
     el.copyCount.textContent = `${state.titles.length} 件`;
@@ -47,47 +73,61 @@ export const App = (() => {
 
   const renderUrlList = () => {
     const list = el.urlList; list.innerHTML = '';
-    state.urls.forEach((it, idx) => {
+    state.urls.forEach((it) => {
       const row = document.createElement('div');
       row.className = 'url-item';
       row.draggable = true;
       row.dataset.id = it.id;
 
       const drag = document.createElement('span'); drag.className = 'drag'; drag.textContent = '↕';
-      const text = document.createElement('div'); text.className = 'url-text'; text.textContent = it.url;
 
-      const up = document.createElement('button'); up.type='button'; up.className='btn-ghost'; up.textContent='↑';
-      up.addEventListener('click', async () => moveUrl(idx, -1));
+      const main = document.createElement('div'); main.className = 'url-main';
+      const title = document.createElement('div'); title.className = 'url-title';
+      title.textContent = it.title || hostnameOf(it.url) || '(タイトル取得中)';
+      const sub = document.createElement('div'); sub.className = 'url-sub';
+      sub.textContent = it.url;
+      main.appendChild(title); main.appendChild(sub);
 
-      const down = document.createElement('button'); down.type='button'; down.className='btn-ghost'; down.textContent='↓';
-      down.addEventListener('click', async () => moveUrl(idx, +1));
+      const goBtn = document.createElement('button'); goBtn.type='button'; goBtn.className='btn'; goBtn.textContent='表示';
+      goBtn.addEventListener('click', () => goToUrlId(it.id));
 
       const del = document.createElement('button'); del.type='button'; del.className='btn'; del.textContent='削除';
-      del.addEventListener('click', async () => { await DB.deleteUrl(it.id); await resequence(); await loadUrls(true); toast('削除しました'); });
+      del.addEventListener('click', async () => {
+        await DB.deleteUrl(it.id);
+        await resequence(); await loadUrls(true);
+        toast('削除しました');
+      });
 
-      row.append(drag, text, up, down, del);
+      row.append(drag, main, goBtn, del);
+
       // D&D
-      row.addEventListener('dragstart', (e) => { row.classList.add('dragging'); e.dataTransfer.setData('text/plain', String(it.id)); });
-      row.addEventListener('dragend',   () => row.classList.remove('dragging'));
+      row.addEventListener('dragstart', (e) => {
+        row.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', String(it.id));
+      });
+      row.addEventListener('dragend', () => row.classList.remove('dragging'));
+
       list.appendChild(row);
     });
 
+    // D&D 受け側（1回だけバインド）
     if (!list._bound) {
       list.addEventListener('dragover', (e) => {
         e.preventDefault();
         const dragging = list.querySelector('.dragging');
         const after = getDragAfterElement(list, e.clientY);
-        if (dragging) {
-          if (after == null) list.appendChild(dragging);
-          else list.insertBefore(dragging, after);
-        }
+        if (!dragging) return;
+        if (after == null) list.appendChild(dragging);
+        else list.insertBefore(dragging, after);
       });
+
       list.addEventListener('drop', async () => {
         const newOrder = Array.from(list.children).map(li => li.dataset.id);
         await DB.saveOrder(newOrder);
         await loadUrls(true);
         toast('並び順を保存しました');
       });
+
       list._bound = true;
     }
   };
@@ -100,15 +140,6 @@ export const App = (() => {
       if (offset < 0 && offset > closest.offset) return { offset, element: child };
       return closest;
     }, { offset: Number.NEGATIVE_INFINITY }).element;
-  };
-
-  const moveUrl = async (index, delta) => {
-    const n = state.urls.length; if (!n) return;
-    const j = index + delta; if (j < 0 || j >= n) return;
-    const ids = [...state.urls];
-    [ids[index], ids[j]] = [ids[j], ids[index]];
-    await DB.saveOrder(ids.map(x => x.id));
-    await loadUrls(true);
   };
 
   const updateViewer = () => {
@@ -135,7 +166,7 @@ export const App = (() => {
     }
     updateViewer();
   };
-  const resequence = async () => { // 削除後などのorder穴埋め
+  const resequence = async () => {
     const ids = (await DB.listUrls()).sort((a,b)=>a.order-b.order).map(v=>v.id);
     await DB.saveOrder(ids);
   };
@@ -154,7 +185,7 @@ export const App = (() => {
       viewer: qs('#viewer'), toast: qs('#toast'),
     };
 
-    // 保存→即反映（ID確定後に再ロード）
+    // テキスト保存
     el.saveTextBtn.addEventListener('click', async () => {
       const title = el.titleInput.value.trim(); const text = el.textInput.value;
       if (!title) return toast('タイトルを入力してください');
@@ -170,15 +201,31 @@ export const App = (() => {
       const a = await DB.listTitles(); downloadJSON(a, 'titles.json');
     });
 
+    // URL追加（タイトル取得→保存→UI更新。取得に失敗したらフォールバック）
     el.addUrlBtn.addEventListener('click', async () => {
       const url = el.urlInput.value.trim();
       if (!url) return toast('URLを入力してください');
       try { new URL(url); } catch { return toast('URL形式が不正です'); }
-      await DB.addUrl(url);
+
+      // 一旦フォールバックのタイトルで保存→非同期に本タイトルへ更新
+      const fallbackTitle = hostnameOf(url) || url;
+      const id = await DB.addUrl(url, fallbackTitle);
       el.urlInput.value = '';
-      await loadUrls(true); toast('追加しました');
+      await loadUrls(true);
+      toast('追加しました');
+
+      // 非同期で本タイトル取得→DB更新→再描画
+      try {
+        const realTitle = await fetchPageTitle(url);
+        if (realTitle && realTitle !== fallbackTitle) {
+          await DB.updateUrl(id, { title: realTitle });
+          await loadUrls(true);
+        }
+      } catch { /* 失敗は無視（フォールバックのまま） */ }
+
       if (state.urls.length === 1) updateViewer();
     });
+
     el.clearUrlBtn.addEventListener('click', async () => {
       if (confirm('URLを全削除しますか？')) { await DB.clearUrls(); await loadUrls(); toast('削除しました'); }
     });
