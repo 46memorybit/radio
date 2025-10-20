@@ -9,6 +9,12 @@
   <link rel="apple-touch-icon" href="./assets/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <style>
+    :root{
+      /* 高さはここで一括管理 */
+      --copy-h: 20vh;        /* テキストコピーエリア（固定） */
+      --register-h: 80vh;    /* ★登録エリア：ご要望どおり 80% に変更 */
+      --request-h: calc(100vh - var(--copy-h) - var(--register-h)); /* 0vh になる */
+    }
     :root { color-scheme: light dark; }
     * { box-sizing: border-box; }
     html, body {
@@ -16,92 +22,81 @@
       background: #0b1020; color: #e5e7eb;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
     }
-    a { color: inherit; }
-    input, textarea, select, button { font-size: 16px !important; } /* ズーム防止 */
+    input, textarea, select, button { font-size: 16px !important; }
 
-    /* === 20%: テキストコピーエリア（フローティング固定） === */
-    .copy-float {
-      position: fixed; inset: 0 0 auto 0; height: 20vh; z-index: 1000;
+    /* 20%: テキストコピー（フローティング固定） */
+    .copy-float{
+      position: fixed; inset: 0 0 auto 0; height: var(--copy-h); z-index: 1000;
       background: rgba(11,16,32,0.96); backdrop-filter: blur(6px);
       border-bottom: 1px solid rgba(255,255,255,0.08);
       display: grid; grid-template-rows: auto 1fr; gap: 6px; padding: 10px 12px;
     }
-    .copy-head { display: flex; align-items: center; justify-content: space-between; }
-    .copy-title { font-weight: 700; letter-spacing: .02em; }
-    .copy-list { overflow: auto; display: grid; grid-auto-rows: minmax(36px, auto); gap: 8px; min-height: 0; }
-    .pill {
-      display: inline-flex; align-items: center; gap: 10px; justify-content: space-between;
-      padding: 8px 12px; border-radius: 999px; background: #131a33;
-      border: 1px solid rgba(255,255,255,0.12); cursor: pointer; user-select: none; white-space: nowrap;
+    .copy-head{display:flex;align-items:center;justify-content:space-between}
+    .copy-title{font-weight:700}
+    .copy-list{overflow:auto;display:grid;grid-auto-rows:minmax(36px,auto);gap:8px;min-height:0}
+    .pill{
+      display:inline-flex;align-items:center;gap:10px;justify-content:space-between;
+      padding:8px 12px;border-radius:999px;background:#131a33;border:1px solid rgba(255,255,255,.12);
+      white-space:nowrap;cursor:pointer
     }
-    .pill:hover { background: #172046; }
-    .pill small { opacity: .65; }
+    .pill:hover{background:#172046}
+    .pill small{opacity:.65}
 
-    /* === 20%: 登録エリア（左:テキスト／右:リクエスト） === */
-    .register {
-      position: absolute; top: 20vh; left: 0; right: 0; height: 20vh;
-      padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-      background: #0b1020;
+    /* 80%: 登録エリア（左：テキスト／右：URL） */
+    .register{
+      position:absolute; top: var(--copy-h); left:0; right:0; height: var(--register-h);
+      padding: 10px 12px; display:grid; grid-template-columns: 1fr 1fr; gap: 12px; background:#0b1020;
     }
-    .card {
-      height: 100%; border: 1px solid rgba(255,255,255,0.08); background: #0e142a;
-      border-radius: 14px; padding: 10px; display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
-      overflow: auto; min-width: 0;
+    .card{
+      height:100%; border:1px solid rgba(255,255,255,.08); background:#0e142a; border-radius:14px; padding:10px;
+      display:grid; grid-template-rows:auto auto 1fr auto; gap:8px; overflow:auto; min-width:0;
     }
-    .card h3 { margin: 0; font-size: 14px; opacity: .9; }
-    .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-    .input, .textarea {
-      width: 100%; background: #0b1329; color: #e5e7eb; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12); padding: 8px 10px; min-width: 0; outline: none;
+    .card h3{margin:0;font-size:14px;opacity:.9}
+    .row{display:grid;grid-template-columns:1fr auto;gap:8px}
+    .input,.textarea{
+      width:100%; background:#0b1329; color:#e5e7eb; border-radius:10px; border:1px solid rgba(255,255,255,.12);
+      padding:8px 10px; min-width:0; outline:none;
     }
-    .textarea { resize: none; min-height: 0; }
-    .btn {
-      background: #1e2a5a; border: 1px solid rgba(255,255,255,0.12); color: #e5e7eb;
-      padding: 8px 12px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+    .textarea{resize:none;min-height:0}
+    .btn{
+      background:#1e2a5a; border:1px solid rgba(255,255,255,.12); color:#e5e7eb;
+      padding:8px 12px; border-radius:10px; cursor:pointer; white-space:nowrap;
     }
-    .btn:hover { background: #223068; }
-    .btn-ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.18); }
+    .btn:hover{background:#223068}
+    .btn-ghost{background:transparent;border:1px dashed rgba(255,255,255,.18)}
 
-    /* URLリスト（D&D + 上下ボタン） */
-    .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(36px, auto); gap: 8px; min-height: 0; }
-    .url-item {
-      display: grid; grid-template-columns: 24px 1fr auto auto auto; gap: 6px; align-items: center;
-      padding: 6px 8px; background: #0b1329; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; min-width: 0;
+    .urllist{overflow:auto;display:grid;grid-auto-rows:minmax(36px,auto);gap:8px;min-height:0}
+    .url-item{
+      display:grid; grid-template-columns:24px 1fr auto auto auto; gap:6px; align-items:center;
+      padding:6px 8px; background:#0b1329; border:1px solid rgba(255,255,255,.12); border-radius:10px; min-width:0;
     }
-    .drag { cursor: grab; opacity: .8; user-select: none; }
-    .url-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-    .url-item.dragging { opacity: .6; border-style: dashed; }
+    .drag{cursor:grab;opacity:.8;user-select:none}
+    .url-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .url-item.dragging{opacity:.6;border-style:dashed}
 
-    /* === 80%: リクエストエリア（上10%:ボタン／下90%:iframe） === */
-    .request {
-      position: absolute; top: 40vh; left: 0; right: 0; height: 80vh;
-      display: grid; grid-template-rows: 10% 90%; background: #0b1020;
+    /* 残余: リクエストエリア（上10%: ボタン／下90%: iframe）*/
+    .request{
+      position:absolute; top: calc(var(--copy-h) + var(--register-h)); left:0; right:0; height: var(--request-h);
+      display:grid; grid-template-rows: 10% 90%; background:#0b1020;
     }
-    .req-controls { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08); }
-    .half { display: flex; align-items: center; justify-content: center; }
-    .req-btn {
-      width: min(240px, 90%); height: 44px; border-radius: 999px; background: #1e2a5a;
-      color: #e5e7eb; border: 1px solid rgba(255,255,255,0.12); cursor: pointer;
-    }
-    .viewer { position: relative; }
-    .viewer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+    .req-controls{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+    .half{display:flex;align-items:center;justify-content:center}
+    .req-btn{width:min(240px,90%);height:44px;border-radius:999px;background:#1e2a5a;color:#e5e7eb;border:1px solid rgba(255,255,255,.12);cursor:pointer}
+    .viewer{position:relative}
+    .viewer iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
 
-    /* トースト */
-    .toast {
-      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 14px; border-radius: 999px; z-index: 2000;
-      pointer-events: none; opacity: 0; transition: opacity .18s ease;
+    .toast{
+      position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;
+      padding:10px 14px;border-radius:999px;z-index:2000;pointer-events:none;opacity:0;transition:opacity .18s ease
     }
-    .toast.show { opacity: 1; }
+    .toast.show{opacity:1}
 
-    /* スマホでも2カラム維持（要求仕様どおり） */
-    @media (max-width: 430px) {
-      .register { grid-template-columns: 1fr 1fr; padding: 8px; gap: 8px; }
-      .card { padding: 8px; gap: 6px; border-radius: 12px; }
-      .row { gap: 6px; }
-      .btn, .btn-ghost { padding: 6px 10px; }
-      .req-btn { height: 40px; }
-      .url-item { grid-template-columns: 22px 1fr auto auto auto; padding: 6px 8px; }
+    @media (max-width:430px){
+      .register{grid-template-columns:1fr 1fr;gap:8px;padding:8px}
+      .card{padding:8px;gap:6px;border-radius:12px}
+      .btn,.btn-ghost{padding:6px 10px}
+      .req-btn{height:40px}
+      .url-item{grid-template-columns:22px 1fr auto auto auto}
     }
   </style>
 </head>
@@ -115,7 +110,7 @@
     <div class="copy-list" id="copyList"></div>
   </section>
 
-  <!-- 20%: 登録エリア（左:テキスト／右:URL） -->
+  <!-- 80%: 登録エリア（左:テキスト／右:URL） -->
   <section class="register" aria-label="登録エリア">
     <!-- 左：テキストコンテナ -->
     <div class="card">
@@ -146,7 +141,7 @@
     </div>
   </section>
 
-  <!-- 80%: リクエストエリア -->
+  <!-- 残余: リクエストエリア（高さ0vhになります） -->
   <section class="request" aria-label="リクエストエリア">
     <div class="req-controls">
       <div class="half"><button id="prevBtn" class="req-btn" type="button">← 前へ</button></div>
