@@ -72,7 +72,7 @@
     .btn:hover { background: #223068; }
     .btn-ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.18); }
 
-    /* URLリスト（D&Dで並べ替え） */
+    /* URLリスト（SortableJSで並べ替え） */
     .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(40px,auto); gap: 8px; min-height: 0; }
     .url-item {
       display: grid; grid-template-columns: 24px 1fr auto auto; gap: 8px; align-items: center;
@@ -82,7 +82,6 @@
     .url-main { overflow: hidden; }
     .url-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .url-sub { font-size: 12px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .url-item.dragging { opacity: .6; border-style: dashed; }
 
     /* === 80%: リクエストエリア（上10%:ボタン／下90%:iframe） === */
     .request {
@@ -176,16 +175,20 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <!-- SortableJS（グローバル） -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" integrity="" crossorigin="anonymous"></script>
+
+  <!-- アプリ本体 -->
   <script type="module">
-    import * as DB from './db.js?v=4';
-    import { App } from './app.js?v=4';
+    import * as DB from './db.js?v=5';
+    import { App } from './app.js?v=5';
 
     if ('serviceWorker' in navigator) {
       addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').catch(console.error);
       });
     }
-    App.init({ DB });
+    App.init({ DB, Sortable /* グローバルのSortableを注入 */ });
   </script>
 </body>
 </html>
