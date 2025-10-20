@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <title>リクエスト支援PWA</title>
   <meta name="theme-color" content="#0b1020" />
   <link rel="manifest" href="./manifest.webmanifest" />
@@ -10,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <style>
     :root{
-      --copy-h: 20vh;     /* フローティング固定：コピーエリア */
+      --copy-h: 20vh;     /* 固定：テキストコピーエリア */
       --request-h: 80vh;  /* 固定：リクエストエリア */
       color-scheme: light dark;
     }
@@ -23,12 +24,13 @@
     a { color: inherit; }
     input, textarea, select, button { font-size: 16px !important; } /* iOSズーム防止 */
 
-    /* === 20%: テキストコピー（フローティング固定） === */
+    /* ===== 20%: テキストコピー（固定／最前面） ===== */
     .copy-float {
-      position: fixed; inset: 0 0 auto 0; height: var(--copy-h); z-index: 1000;
+      position: fixed; inset: 0 0 auto 0; height: var(--copy-h); z-index: 3;
       background: rgba(11,16,32,0.96); backdrop-filter: blur(6px);
       border-bottom: 1px solid rgba(255,255,255,0.08);
       display: grid; grid-template-rows: auto 1fr; gap: 6px; padding: 10px 12px;
+      -webkit-overflow-scrolling: touch;
     }
     .copy-head { display: flex; align-items: center; justify-content: space-between; }
     .copy-title { font-weight: 700; letter-spacing: .02em; }
@@ -41,11 +43,12 @@
     .pill:hover { background: #172046; }
     .pill small { opacity: .65; }
 
-    /* === 本文はコピー分の余白を確保 === */
+    /* 本体（コピー分の余白） */
     main { padding-top: var(--copy-h); }
 
-    /* === 登録エリア（可変・縦並び） === */
+    /* ===== 登録エリア（可変／縦並び／iframeより上の層） ===== */
     .register {
+      position: relative; z-index: 2;
       padding: 10px 12px;
       display: grid; grid-template-rows: auto auto; gap: 12px;
       background: #0b1020;
@@ -54,13 +57,14 @@
       border: 1px solid rgba(255,255,255,0.08); background: #0e142a;
       border-radius: 14px; padding: 10px;
       display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
-      overflow: auto; min-width: 0;
+      overflow: auto; min-width: 0; -webkit-overflow-scrolling: touch;
     }
     .card h3 { margin: 0; font-size: 14px; opacity: .9; }
     .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-    .input, .textarea {
+    .input, .textarea, select, input[type="text"], input[type="url"]{
       width: 100%; background: #0b1329; color: #e5e7eb; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12); padding: 8px 10px; min-width: 0; outline: none;
+      border: 1px solid rgba(255,255,255,0.12); padding: 10px 12px; min-width: 0; outline: none;
+      pointer-events: auto; -webkit-user-select: text; user-select: text;
     }
     .textarea { resize: none; min-height: 0; }
     .btn {
@@ -71,7 +75,7 @@
     .btn-ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.18); }
 
     /* URLリスト（SortableJS） */
-    .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(40px,auto); gap: 8px; min-height: 0; }
+    .urllist { overflow: auto; display: grid; grid-auto-rows: minmax(40px,auto); gap: 8px; min-height: 0; -webkit-overflow-scrolling: touch; }
     .url-item {
       display: grid; grid-template-columns: 1fr auto auto 28px; gap: 8px; align-items: center;
       padding: 8px 10px; background: #0b1329; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; min-width: 0;
@@ -82,8 +86,9 @@
     .handle { cursor: grab; user-select: none; text-align: center; opacity: .9; }
     .handle::before { content: "≡"; font-size: 18px; line-height: 1; display: inline-block; }
 
-    /* === 80%: リクエストエリア（固定高：上10%/下90%） === */
+    /* ===== リクエストエリア（固定高：iframeは最背面寄り） ===== */
     .request {
+      position: relative; z-index: 1;
       height: var(--request-h);
       display: grid; grid-template-rows: 10% 90%;
       background: #0b1020;
@@ -96,12 +101,12 @@
       color: #e5e7eb; border: 1px solid rgba(255,255,255,0.12); cursor: pointer;
     }
     .viewer { position: relative; }
-    .viewer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+    .viewer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; z-index: 0; }
 
     /* トースト */
     .toast {
       position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 14px; border-radius: 999px; z-index: 2000;
+      background: rgba(0,0,0,0.85); color: #fff; padding: 10px 14px; border-radius: 999px; z-index: 4;
       pointer-events: none; opacity: 0; transition: opacity .18s ease;
     }
     .toast.show { opacity: 1; }
@@ -119,7 +124,7 @@
   <!-- 20%: テキストコピーエリア（フローティング固定） -->
   <section class="copy-float" id="copyFloat">
     <div class="copy-head">
-      <div class="copy-title">保存したタイトル（タップでコピー）</div>
+      <div class="copy-title">test保存したタイトル（タップでコピー）</div>
       <div id="copyCount">0 件</div>
     </div>
     <div class="copy-list" id="copyList"></div>
@@ -177,8 +182,8 @@
 
   <!-- アプリ本体 -->
   <script type="module">
-    import * as DB from './db.js?v=6';
-    import { App } from './app.js?v=6';
+    import * as DB from './db.js?v=7';
+    import { App } from './app.js?v=7';
 
     if ('serviceWorker' in navigator) {
       addEventListener('load', () => {
