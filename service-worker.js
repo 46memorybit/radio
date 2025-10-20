@@ -1,12 +1,12 @@
-// App Shell キャッシュ（バージョン更新で古いJSを確実に捨てる）
-const CACHE_NAME = 'reqpwa-v3';
+// App Shell キャッシュ（v4 へ更新）
+const CACHE_NAME = 'reqpwa-v4';
 const CORE = [
   './',
   './index.html',
-  './app.js?v=3',
-  './db.js?v=3',
+  './app.js?v=4',
+  './db.js?v=4',
   './manifest.webmanifest'
-  // 必要ならアイコンも: './assets/icon-192.png', './assets/icon-512.png'
+  // 必要に応じて: './assets/icon-192.png', './assets/icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -25,7 +25,6 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
-// GETのみキャッシュ。クロスオリジンiframeはCORSでput失敗する事があるのでtry/catch。
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
