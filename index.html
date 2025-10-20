@@ -22,6 +22,7 @@
     }
     a { color: inherit; }
 
+    /* 入力時のモバイル拡大防止 */
     input, textarea, select, button { font-size: 16px !important; }
 
     /* === フローティング固定：テキストコピーエリア（20vh） === */
@@ -45,6 +46,7 @@
       display: grid;
       grid-auto-rows: minmax(36px, auto);
       gap: 8px;
+      min-height: 0;
     }
     .pill {
       display: inline-flex;
@@ -62,7 +64,7 @@
     .pill:hover { background: #172046; }
     .pill small { opacity: .7; }
 
-    /* === 登録エリア（20vh） === */
+    /* === 登録エリア（20vh／左右1:1固定） === */
     .register {
       position: absolute;
       top: 20vh; /* フローティングの下に配置 */
@@ -71,7 +73,7 @@
       height: 20vh;
       padding: 12px;
       display: grid;
-      grid-template-columns: 1fr 1fr; /* 左右半分 */
+      grid-template-columns: 1fr 1fr; /* 左右半分で固定（スマホでも崩さない） */
       gap: 12px;
       background: #0b1020;
     }
@@ -83,12 +85,14 @@
       border-radius: 16px;
       padding: 12px;
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto auto 1fr; /* 見出し／操作行／本文(スクロール) */
       gap: 10px;
+      overflow: auto;          /* はみ出し対策（内部スクロール） */
+      min-width: 0;            /* グリッド圧縮時のオーバーフロー防止 */
     }
 
     .card h3 { margin: 0; font-size: 14px; opacity: .9; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
     .input, .textarea {
       width: 100%;
@@ -98,8 +102,12 @@
       border: 1px solid rgba(255,255,255,0.12);
       padding: 10px 12px;
       outline: none;
+      min-width: 0;
     }
-    .textarea { resize: none; }
+    .textarea {
+      resize: none;
+      min-height: 0;   /* グリッド内での伸びすぎ防止 */
+    }
 
     .btn {
       background: #1e2a5a;
@@ -108,12 +116,14 @@
       padding: 10px 14px;
       border-radius: 10px;
       cursor: pointer;
+      white-space: nowrap;
     }
     .btn:hover { background: #223068; }
 
     .btn-ghost {
       background: transparent;
       border: 1px dashed rgba(255,255,255,0.18);
+      white-space: nowrap;
     }
     .small { font-size: 12px; opacity: .7; }
 
@@ -123,6 +133,7 @@
       display: grid;
       grid-auto-rows: minmax(36px, auto);
       gap: 8px;
+      min-height: 0; /* 内部スクロールのため */
     }
     .url-item {
       display: grid;
@@ -133,10 +144,11 @@
       background: #0b1329;
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 12px;
+      min-width: 0;
     }
     .drag { cursor: grab; user-select: none; opacity: .8; }
     .del { opacity: .8; }
-    .url-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .url-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .url-item.dragging { opacity: .6; border-style: dashed; }
 
     /* === リクエストエリア（80vh） === */
@@ -194,11 +206,10 @@
     }
     .toast.show { opacity: 1; }
 
-    /* === スマホ対応 === */
+    /* === スマホでも 1:1 を維持（崩さない） === */
     @media (max-width: 900px) {
-      .register { grid-template-columns: 1fr; height: auto; }
-      .card { grid-template-rows: auto auto 1fr auto; }
-      .row { grid-template-columns: 1fr; }
+      .register { grid-template-columns: 1fr 1fr; height: 20vh; }
+      .row { grid-template-columns: 1fr auto; }
     }
   </style>
 </head>
@@ -212,7 +223,7 @@
     <div class="copy-list" id="copyList"></div>
   </section>
 
-  <!-- === 登録エリア === -->
+  <!-- === 登録エリア（左右1:1固定） === -->
   <section class="register" aria-label="登録エリア">
     <!-- 左：テキスト登録 -->
     <div class="card">
@@ -221,7 +232,7 @@
         <input id="titleInput" class="input" placeholder="タイトル" />
         <button id="saveTextBtn" class="btn">保存</button>
       </div>
-      <textarea id="textInput" class="textarea" placeholder="コピーしたい本文を入力" rows="4"></textarea>
+      <textarea id="textInput" class="textarea" placeholder="コピーしたい本文を入力"></textarea>
       <div class="row">
         <button id="exportTextBtn" class="btn-ghost">エクスポート(JSON)</button>
         <button id="clearTextBtn" class="btn-ghost">全削除</button>
@@ -261,12 +272,14 @@
     import * as DB from './db.js';
     import { App } from './app.js';
 
+    // Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').catch(console.error);
       });
     }
 
+    // アプリ初期化
     App.init({ DB });
   </script>
 </body>
