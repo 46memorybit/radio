@@ -1,4 +1,4 @@
-// IndexedDB ラッパ（URLの title フィールドを追加）
+// IndexedDB ラッパ（URLに title を保持）
 const DB_NAME = 'request-pwa-db';
 const DB_VER  = 3;
 const STORE_TITLES = 'titles'; // {id, title, text, created}
@@ -16,8 +16,6 @@ const openDB = () => new Promise((resolve, reject) => {
       const s = db.createObjectStore(STORE_URLS, { keyPath: 'id', autoIncrement: true });
       s.createIndex('order', 'order', { unique: false });
       s.createIndex('created', 'created', { unique: false });
-    } else {
-      // 既存storeに title がない場合のための軽い移行（put時に欠損でも問題なし）
     }
   };
   req.onsuccess = () => resolve(req.result);
@@ -29,8 +27,8 @@ const txWrap = async (store, mode, work) => {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, mode);
     const st = tx.objectStore(store);
-    const ret = work(st);
-    tx.oncomplete = () => resolve(ret);
+    const out = work(st);
+    tx.oncomplete = () => resolve(out);
     tx.onerror = () => reject(tx.error);
   });
 };
